@@ -1,8 +1,8 @@
 domains:
-  core:            !include zaai_core.yaml
-  connector:       !include zaai_connector.yaml
-  cloud:           !include zaai_cloud.yaml
-  test:            !include zaai_test.yaml
+  core:            !include domains/core/core.yaml
+  connector:       !include domains/connector/connector.yaml
+  cloud:           !include domains/cloud/cloud.yaml
+  test:            !include domains/test/test.yaml
 
 # common
 
