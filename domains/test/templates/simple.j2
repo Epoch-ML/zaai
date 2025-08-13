@@ -149,6 +149,70 @@ def test_comprehensive_directives(zerg_state=None):
     assert string_length == 16, f"Length of 'template_testing' should be 16, got {string_length}"
     assert joined_string == "test-template-v1", f"Joined string mismatch: {joined_string}"
     
+    # ============================================
+    # NEW: List Directive Tests
+    # ============================================
+    print("\n[LIST DIRECTIVES]")
+    
+    # Server list
+    server_list = {{ config.server_list }}
+    print(f"  Server List     : {server_list}")
+    assert isinstance(server_list, list), "server_list should be a list"
+    assert len(server_list) == 3, f"server_list should have 3 items, got {len(server_list)}"
+    assert server_list == ['server1', 'server2', 'server3'], f"Unexpected server_list: {server_list}"
+    
+    # Port list
+    port_list = {{ config.port_list }}
+    print(f"  Port List       : {port_list}")
+    assert isinstance(port_list, list), "port_list should be a list"
+    assert len(port_list) == 4, f"port_list should have 4 items, got {len(port_list)}"
+    
+    # Single item list
+    single_list = {{ config.single_item_list }}
+    print(f"  Single Item List: {single_list}")
+    assert isinstance(single_list, list), "single_item_list should be a list"
+    assert len(single_list) == 1, f"single_item_list should have 1 item, got {len(single_list)}"
+    
+    # Empty list
+    empty_list = {{ config.empty_list }}
+    print(f"  Empty List      : {empty_list}")
+    assert isinstance(empty_list, list), "empty_list should be a list"
+    assert len(empty_list) == 0, f"empty_list should be empty, got {len(empty_list)}"
+    
+    # ============================================
+    # NEW: Dict Directive Tests
+    # ============================================
+    print("\n[DICT DIRECTIVES]")
+    
+    # Server config dict
+    server_config = {{ config.server_config }}
+    print(f"  Server Config   : {server_config}")
+    assert isinstance(server_config, dict), "server_config should be a dict"
+    assert server_config.get('host') == 'localhost', f"Expected host=localhost, got {server_config.get('host')}"
+    assert server_config.get('port') == 8080, f"Expected port=8080, got {server_config.get('port')}"
+    assert server_config.get('ssl') == True, f"Expected ssl=True, got {server_config.get('ssl')}"
+    
+    # JSON config dict
+    json_config = {{ config.json_config }}
+    print(f"  JSON Config     : {json_config}")
+    assert isinstance(json_config, dict), "json_config should be a dict"
+    assert json_config.get('environment') == 'production', f"Expected environment=production"
+    assert json_config.get('debug') == False, f"Expected debug=False"
+    assert json_config.get('timeout') == 30, f"Expected timeout=30"
+    
+    # Pairs config dict
+    pairs_config = {{ config.pairs_config }}
+    print(f"  Pairs Config    : {pairs_config}")
+    assert isinstance(pairs_config, dict), "pairs_config should be a dict"
+    assert pairs_config.get('user') == 'admin', f"Expected user=admin"
+    assert pairs_config.get('role') == 'superuser', f"Expected role=superuser"
+    
+    # Empty dict
+    empty_dict = {{ config.empty_dict }}
+    print(f"  Empty Dict      : {empty_dict}")
+    assert isinstance(empty_dict, dict), "empty_dict should be a dict"
+    assert len(empty_dict) == 0, f"empty_dict should be empty, got {len(empty_dict)}"
+    
     # Environment Variables
     print("\n[ENVIRONMENT VARIABLES]")
     {% if config.env_home and not config.env_home.startswith('<ENV_') %}

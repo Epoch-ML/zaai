@@ -3,7 +3,7 @@ name: "j2_template"
 category: "Template Processing"
 description: |
   Demonstrates the use of Jinja2 templates within the manifest system.
-  This manifest showcases all available YAML directives (!time/*, !uuid, !random, etc.)
+  This manifest showcases all available YAML directives (!time/*, !uuid, !random, !list, !dict, !ref, !join, etc.)
   and how they can be used in templates for dynamic test generation.
 
 specs:
@@ -173,11 +173,60 @@ configs:
     description: "Current user from environment"
     value: !env/var USER
 
-  # Format directive (would be resolved in second pass with other configs)
-  # Commented out as it requires special handling
-  # - name: "formatted_message"
-  #   description: "Formatted message with other config values"
-  #   value: !format "User {user_name} started session {session_id}"
+  # List directive tests
+  - name: "server_list"
+    description: "List of servers using inline format"
+    value: !list [server1, server2, server3]
+
+  - name: "port_list"
+    description: "List of ports from comma-separated string"
+    value: !list 8080,8081,8082,8083
+
+  - name: "single_item_list"
+    description: "Single item becomes a list"
+    value: !list production
+
+  - name: "empty_list"
+    description: "Empty list"
+    value: !list
+
+  # Dict directive tests
+  - name: "server_config"
+    description: "Dictionary using inline format"
+    value: !dict {host: localhost, port: 8080, ssl: true}
+
+  - name: "json_config"
+    description: "Dictionary from JSON format"
+    value: !dict json:{"environment":"production","debug":false,"timeout":30}
+
+  - name: "pairs_config"
+    description: "Dictionary from key=value pairs"
+    value: !dict pairs:user=admin,password=secret,role=superuser
+
+  - name: "empty_dict"
+    description: "Empty dictionary"
+    value: !dict
+
+  # Ref directive tests - define base values first
+  - name: "base_url"
+    description: "Base URL for API"
+    value: "https://api.example.com"
+
+  - name: "api_version"
+    description: "API version"
+    value: "v2"
+
+  - name: "referenced_base_url"
+    description: "Reference to base_url config"
+    value: !ref base_url
+
+  - name: "referenced_user"
+    description: "Reference to user_name config"
+    value: !ref user_name
+
+  - name: "referenced_port"
+    description: "Reference to random_port config"
+    value: !ref random_port
 
   # Metadata
   - name: "log_level"
