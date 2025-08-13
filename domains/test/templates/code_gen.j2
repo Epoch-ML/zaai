@@ -1,0 +1,245 @@
+{# Python Code Generator Template #}
+{# This template generates a complete Python connector class based on manifest data #}
+#!/usr/bin/env python3
+"""
+{{ description | default('Auto-generated connector class') }}
+
+Category: {{ category }}
+Author: {{ author | default('Auto-generated') }}
+Version: {{ version | default('1.0.0') }}
+"""
+
+import logging
+import os
+from typing import Optional, Dict, Any, List
+{% if has_authentication %}
+from base64 import b64encode
+import hashlib
+{% endif %}
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+
+class {{ class_name }}:
+    """
+    {{ description | default('Connector implementation for ' + module_name) }}
+    
+    This class provides methods to interact with the service and manage
+    its configuration and operations.
+    """
+    
+    def __init__(self{% for field in fields if field.required %}, {{ field.name }}: str{% endfor %}):
+        """
+        Initialize the {{ class_name }}.
+        
+        Args:
+        {% for field in fields if field.required %}
+            {{ field.name }}: {{ field.description | default('Required field') }}
+        {% endfor %}
+        """
+        logger.info(f"Initializing {{ class_name }}")
+        
+        # Store configuration
+        self.config = {}
+        
+        {% for field in fields %}
+        {% if field.required %}
+        # {{ field.description | default('Configuration field') }}
+        {% if field.is_secret %}
+        self.config['{{ field.name }}'] = self._mask_secret({{ field.name }})
+        self._{{ field.name }} = {{ field.name }}  # Store actual value privately
+        {% else %}
+        self.config['{{ field.name }}'] = {{ field.name }}
+        {% endif %}
+        {% else %}
+        # Optional: {{ field.description | default('Configuration field') }}
+        self.config['{{ field.name }}'] = None
+        {% endif %}
+        
+        {% endfor %}
+        # Initialize state
+        self.is_connected = False
+        self.last_error = None
+        
+        logger.info("{{ class_name }} initialized successfully")
+    
+    {% if has_authentication %}
+    def _mask_secret(self, secret: str) -> str:
+        """Mask sensitive information for logging."""
+        if not secret:
+            return "[NOT SET]"
+        if len(secret) <= 8:
+            return "*" * len(secret)
+        return f"{secret[:2]}{'*' * (len(secret) - 4)}{secret[-2:]}"
+    
+    def authenticate(self) -> bool:
+        """
+        Authenticate with the service.
+        
+        Returns:
+            bool: True if authentication successful, False otherwise
+        """
+        logger.info("Attempting authentication")
+        try:
+            # Implement actual authentication logic here
+            # This is a placeholder implementation
+            {% for field in fields if field.is_secret %}
+            if not self._{{ field.name }}:
+                logger.error("{{ field.name }} not provided")
+                return False
+            {% endfor %}
+            
+            self.is_connected = True
+            logger.info("Authentication successful")
+            return True
+            
+        except Exception as e:
+            self.last_error = str(e)
+            logger.error(f"Authentication failed: {e}")
+            return False
+    {% endif %}
+    
+    def health_check(self) -> bool:
+        """
+        Perform a health check on the connector.
+        
+        Returns:
+            bool: True if connector is healthy, False otherwise
+        """
+        logger.info("Performing health check")
+        
+        # Check required configuration
+        {% for field in fields if field.required %}
+        {% if field.is_secret %}
+        if not self._{{ field.name }}:
+        {% else %}
+        if not self.config.get('{{ field.name }}'):
+        {% endif %}
+            logger.error("Missing required field: {{ field.name }}")
+            return False
+        {% endfor %}
+        
+        {% if has_authentication %}
+        # Check authentication status
+        if not self.is_connected:
+            logger.warning("Not authenticated")
+            if not self.authenticate():
+                return False
+        {% endif %}
+        
+        logger.info("Health check passed")
+        return True
+    
+    def get_config(self) -> Dict[str, Any]:
+        """
+        Get the current configuration (with secrets masked).
+        
+        Returns:
+            Dict containing current configuration
+        """
+        return self.config.copy()
+    
+    def update_config(self, **kwargs) -> None:
+        """
+        Update configuration values.
+        
+        Args:
+            **kwargs: Configuration key-value pairs to update
+        """
+        for key, value in kwargs.items():
+            if key in self.config:
+                {% for field in fields if field.is_secret %}
+                if key == '{{ field.name }}':
+                    self._{{ field.name }} = value
+                    self.config[key] = self._mask_secret(value)
+                    logger.info(f"Updated {{ field.name }}")
+                {% endfor %}
+                {% for field in fields if not field.is_secret %}
+                if key == '{{ field.name }}':
+                    self.config[key] = value
+                    logger.info(f"Updated {{ field.name }}: {value}")
+                {% endfor %}
+    
+    {% for method in test_methods %}
+    def {{ method.name }}(self) -> bool:
+        """
+        {{ method.description | default('Test method') }}
+        
+        Preconditions: {{ method.preconditions | default('None') }}
+        Postconditions: {{ method.postconditions | default('None') }}
+        
+        Returns:
+            bool: True if test passes, False otherwise
+        """
+        logger.info("Running {{ method.name }}")
+        
+        try:
+            # TODO: Implement actual test logic
+            # This is a placeholder implementation
+            
+            # Simulate test execution
+            logger.debug("Executing test steps...")
+            
+            # Check preconditions
+            if not self.health_check():
+                logger.error("Preconditions not met")
+                return False
+            
+            # Perform test actions
+            # ...
+            
+            # Verify postconditions
+            logger.info("{{ method.name }} completed successfully")
+            return True
+            
+        except Exception as e:
+            logger.error(f"{{ method.name }} failed: {e}")
+            self.last_error = str(e)
+            return False
+    
+    {% endfor %}
+    def __repr__(self) -> str:
+        """String representation of the connector."""
+        return f"{{ class_name }}(connected={self.is_connected})"
+    
+    def __str__(self) -> str:
+        """Human-readable string representation."""
+        status = "Connected" if self.is_connected else "Disconnected"
+        return f"{{ class_name }} - Status: {status}"
+
+
+# Example usage
+if __name__ == "__main__":
+    logger.info("Starting {{ class_name }} example")
+    
+    # Create connector instance
+    {% set required_fields = fields | selectattr('required', 'equalto', true) | list %}
+    {% if required_fields | length > 0 %}
+    connector = {{ class_name }}(
+        {% for field in required_fields %}
+        {{ field.name }}=os.environ.get("{{ field.name | upper }}", "demo_value"){% if not loop.last %},{% endif %}
+        {% endfor %}
+    )
+    {% else %}
+    connector = {{ class_name }}()
+    {% endif %}
+    
+    # Run health check
+    if connector.health_check():
+        logger.info("Connector is healthy")
+        
+        {% if test_methods | length > 0 %}
+        # Run test methods
+        {% for method in test_methods[:2] %}
+        if connector.{{ method.name }}():
+            logger.info("{{ method.name }} passed")
+        else:
+            logger.error("{{ method.name }} failed")
+        {% endfor %}
+        {% endif %}
+    else:
+        logger.error("Connector health check failed")
+    
+    logger.info("Example completed")

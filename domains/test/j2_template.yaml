@@ -1,0 +1,161 @@
+# Jinja2 Template Demo
+name: "j2_template"
+category: "Template Processing"
+description: |
+  Demonstrates the use of Jinja2 templates within the manifest system.
+  This connector showcases different ways to use the !python/template directive
+  including inline context, context from YAML sections, and dynamic context extraction.
+
+specs:
+  - description: "Template loader correctly processes simple template files"
+    preconditions: "Template files exist in the workspace"
+    postconditions: "Templates are loaded and rendered with provided context"
+  
+  - description: "Templates can access configuration data from the manifest"
+    preconditions: "Manifest contains configs section with values"
+    postconditions: "Rendered templates include configuration values"
+  
+  - description: "Templates support dynamic context extraction"
+    preconditions: "Context extractor function is provided"
+    postconditions: "Templates receive dynamically generated context based on manifest data"
+  
+  - description: "Templates can generate Python code that executes correctly"
+    preconditions: "Code generation templates are loaded"
+    postconditions: "Generated Python code is syntactically correct and executable"
+  
+  - description: "Template results can be saved to output files"
+    preconditions: "Output path is specified in template configuration"
+    postconditions: "Rendered content is saved to the specified output path"
+
+tests:
+  - description: "Test Simple Template Rendering"
+    preconditions: "Basic greeting template exists"
+    postconditions: "Template renders with provided name context"
+    function_to_run: !python/template templates/greeting.j2
+
+  # - description: "Test Configuration-Based Template"
+  #   preconditions: "Config template exists and configs section is defined"
+  #   postconditions: "Template renders with configuration values from manifest"
+  #   function_to_run: !python/template
+  #     template: templates/config_report.j2
+  #     context_from: configs
+  #     context:
+  #       report_title: "Configuration Report"
+  #       generated_by: "j2_template_demo"
+
+  # - description: "Test Code Generation Template"
+  #   preconditions: "Code generation template exists"
+  #   postconditions: "Template generates valid Python code"
+  #   function_to_run: !python/template
+  #     template: templates/code_generator.j2
+  #     output: generated/connector_class.py
+  #     context_extractor: !python/function |
+  #       def extract_context(yaml_data):
+  #           """Extract context for code generation from manifest data"""
+  #           # Get connector name from manifest
+  #           name = yaml_data.get('name', 'unknown')
+            
+  #           # Process configs into fields for code generation
+  #           fields = []
+  #           for config in yaml_data.get('configs', []):
+  #               if isinstance(config, dict):
+  #                   field_name = config.get('name', '')
+  #                   fields.append({
+  #                       'name': field_name,
+  #                       'type': 'str',  # Default type
+  #                       'required': config.get('required', False),
+  #                       'description': config.get('description', ''),
+  #                       'is_secret': any(word in field_name.lower() 
+  #                                      for word in ['password', 'token', 'key', 'secret'])
+  #                   })
+            
+  #           # Extract test methods
+  #           test_methods = []
+  #           for test in yaml_data.get('tests', []):
+  #               if isinstance(test, dict):
+  #                   test_methods.append({
+  #                       'name': test.get('description', '').replace(' ', '_').lower(),
+  #                       'description': test.get('description', ''),
+  #                       'preconditions': test.get('preconditions', ''),
+  #                       'postconditions': test.get('postconditions', '')
+  #                   })
+            
+  #           return {
+  #               'class_name': ''.join(w.capitalize() for w in name.split('_')) + 'Connector',
+  #               'module_name': name.lower(),
+  #               'description': yaml_data.get('description', ''),
+  #               'fields': fields,
+  #               'test_methods': test_methods,
+  #               'has_authentication': any(f['is_secret'] for f in fields),
+  #               'category': yaml_data.get('category', 'General')
+  #           }
+  #     context:
+  #       author: "Auto-generated"
+  #       version: "1.0.0"
+
+  # - description: "Test Auto-Context Template"
+  #   preconditions: "Template with auto-context enabled"
+  #   postconditions: "Template receives automatically extracted context"
+  #   function_to_run: !python/template
+  #     template: templates/greeting.j2
+  #     auto_context: true
+  #     context:
+  #       custom_message: "This uses auto-extracted context"
+
+  # - description: "Test Template with Multiple Context Sources"
+  #   preconditions: "All context sources are available"
+  #   postconditions: "Template merges context from multiple sources correctly"
+  #   function_to_run: !python/function |
+  #     def test_multi_context_template(zerg_state=None):
+  #         """Test that templates can merge context from multiple sources"""
+  #         print("Testing multi-context template rendering")
+          
+  #         # This would be the result of template rendering
+  #         # In actual implementation, the template directive would handle this
+  #         from pathlib import Path
+          
+  #         # Simulate template rendering with multiple contexts
+  #         global_context = {"app_name": "J2 Demo"}
+  #         inline_context = {"user": "test_user"}
+  #         yaml_context = {"configs": zerg_state.get("configs", [])} if zerg_state else {}
+          
+  #         # Merge contexts (simulating what the loader does)
+  #         final_context = {**global_context, **inline_context, **yaml_context}
+          
+  #         assert "app_name" in final_context
+  #         assert "user" in final_context
+          
+  #         return True
+
+references: []
+
+configs:
+  - name: "api_endpoint"
+    description: "The API endpoint URL for the service"
+    value: "https://api.example.com/v1"
+  
+  # - name: "api_key"
+  #   description: "API authentication key"
+  #   value: !env/var API_KEY
+  #   required: true
+  
+  - name: "timeout"
+    description: "Request timeout in seconds"
+    value: 30
+  
+  - name: "max_retries"
+    description: "Maximum number of retry attempts"
+    value: 3
+  
+  - name: "enable_caching"
+    description: "Whether to enable response caching"
+    value: true
+  
+  - name: "cache_ttl"
+    description: "Cache time-to-live in seconds"
+    value: 300
+  
+  - name: "log_level"
+    description: "Logging level (DEBUG, INFO, WARNING, ERROR)"
+    value: "INFO"
+# !Jinja2 Template Demo
