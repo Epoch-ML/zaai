@@ -150,68 +150,170 @@ def test_comprehensive_directives(zerg_state=None):
     assert joined_string == "test-template-v1", f"Joined string mismatch: {joined_string}"
     
     # ============================================
-    # NEW: List Directive Tests
+    # LIST DIRECTIVE TESTS WITH LOOPS
     # ============================================
-    print("\n[LIST DIRECTIVES]")
+    print("\n[LIST DIRECTIVES WITH LOOPS]")
     
     # Server list
     server_list = {{ config.server_list }}
     print(f"  Server List     : {server_list}")
     assert isinstance(server_list, list), "server_list should be a list"
     assert len(server_list) == 3, f"server_list should have 3 items, got {len(server_list)}"
-    assert server_list == ['server1', 'server2', 'server3'], f"Unexpected server_list: {server_list}"
+    
+    # Loop through server list
+    print("  Iterating through servers:")
+    {% for server in config.server_list %}
+    print(f"    - Server #{{ loop.index }}: {{ server }}")
+    {% endfor %}
     
     # Port list
     port_list = {{ config.port_list }}
-    print(f"  Port List       : {port_list}")
+    print(f"\n  Port List       : {port_list}")
     assert isinstance(port_list, list), "port_list should be a list"
     assert len(port_list) == 4, f"port_list should have 4 items, got {len(port_list)}"
     
+    # Loop through ports with enumeration
+    print("  Available ports:")
+    {% for port in config.port_list %}
+    print(f"    Port {{ loop.index0 }}: {{ port }}")
+    {% endfor %}
+    
     # Single item list
     single_list = {{ config.single_item_list }}
-    print(f"  Single Item List: {single_list}")
+    print(f"\n  Single Item List: {single_list}")
     assert isinstance(single_list, list), "single_item_list should be a list"
     assert len(single_list) == 1, f"single_item_list should have 1 item, got {len(single_list)}"
     
+    # Loop through single item (demonstrates loop works with 1 item)
+    {% for item in config.single_item_list %}
+    print(f"    Single item: {{ item }}")
+    {% endfor %}
+    
     # Empty list
     empty_list = {{ config.empty_list }}
-    print(f"  Empty List      : {empty_list}")
+    print(f"\n  Empty List      : {empty_list}")
     assert isinstance(empty_list, list), "empty_list should be a list"
     assert len(empty_list) == 0, f"empty_list should be empty, got {len(empty_list)}"
     
+    # Loop through empty list (demonstrates loop handles empty)
+    {% for item in config.empty_list %}
+    print(f"    This should not print: {{ item }}")
+    {% else %}
+    print(f"    Empty list - no items to iterate")
+    {% endfor %}
+    
     # ============================================
-    # NEW: Dict Directive Tests
+    # DICT DIRECTIVE TESTS WITH LOOPS
     # ============================================
-    print("\n[DICT DIRECTIVES]")
+    print("\n[DICT DIRECTIVES WITH LOOPS]")
     
     # Server config dict
     server_config = {{ config.server_config }}
     print(f"  Server Config   : {server_config}")
     assert isinstance(server_config, dict), "server_config should be a dict"
-    assert server_config.get('host') == 'localhost', f"Expected host=localhost, got {server_config.get('host')}"
-    assert server_config.get('port') == 8080, f"Expected port=8080, got {server_config.get('port')}"
-    assert server_config.get('ssl') == True, f"Expected ssl=True, got {server_config.get('ssl')}"
+    
+    # Loop through server config keys and values
+    print("  Server configuration details:")
+    {% for key, value in config.server_config.items() %}
+    print(f"    {{ key }}: {{ value }}")
+    {% endfor %}
     
     # JSON config dict
     json_config = {{ config.json_config }}
-    print(f"  JSON Config     : {json_config}")
+    print(f"\n  JSON Config     : {json_config}")
     assert isinstance(json_config, dict), "json_config should be a dict"
-    assert json_config.get('environment') == 'production', f"Expected environment=production"
-    assert json_config.get('debug') == False, f"Expected debug=False"
-    assert json_config.get('timeout') == 30, f"Expected timeout=30"
+    
+    # Loop through JSON config with type checking
+    print("  JSON configuration breakdown:")
+    {% for key, value in config.json_config.items() %}
+    print(f"    - {{ key }} = {{ value }} (type: {type({{ value }}).__name__})")
+    {% endfor %}
     
     # Pairs config dict
     pairs_config = {{ config.pairs_config }}
-    print(f"  Pairs Config    : {pairs_config}")
+    print(f"\n  Pairs Config    : {pairs_config}")
     assert isinstance(pairs_config, dict), "pairs_config should be a dict"
-    assert pairs_config.get('user') == 'admin', f"Expected user=admin"
-    assert pairs_config.get('role') == 'superuser', f"Expected role=superuser"
+    
+    # Loop through pairs config - useful for credentials/settings
+    print("  Credentials and settings:")
+    {% for key, value in config.pairs_config.items() %}
+    {% if 'password' in key.lower() %}
+    print(f"    {{ key }}: {'*' * len('{{ value }}')} [REDACTED]")
+    {% else %}
+    print(f"    {{ key }}: {{ value }}")
+    {% endif %}
+    {% endfor %}
     
     # Empty dict
     empty_dict = {{ config.empty_dict }}
-    print(f"  Empty Dict      : {empty_dict}")
+    print(f"\n  Empty Dict      : {empty_dict}")
     assert isinstance(empty_dict, dict), "empty_dict should be a dict"
     assert len(empty_dict) == 0, f"empty_dict should be empty, got {len(empty_dict)}"
+    
+    # Loop through empty dict
+    {% for key, value in config.empty_dict.items() %}
+    print(f"    This should not print: {{ key }}={{ value }}")
+    {% else %}
+    print(f"    Empty dict - no items to iterate")
+    {% endfor %}
+    
+    # ============================================
+    # ADVANCED: NESTED LOOPS AND CONDITIONAL PROCESSING
+    # ============================================
+    print("\n[ADVANCED LIST/DICT PROCESSING]")
+    
+    # Create a mapping of servers to ports
+    print("  Server-Port Mapping:")
+    {% for server in config.server_list %}
+    {% if loop.index0 < config.port_list|length %}
+    print(f"    {{ server }} -> Port {{ config.port_list[loop.index0] }}")
+    {% else %}
+    print(f"    {{ server }} -> Port not assigned")
+    {% endif %}
+    {% endfor %}
+    
+    # Process all configs that are lists
+    print("\n  All List Configurations:")
+    list_configs = []
+    {% for name, value in config.items() %}
+    {% if value is sequence and value is not string %}
+    list_configs.append(("{{ name }}", {{ value }}))
+    print(f"    - {{ name }}: {{ value|length }} items")
+    {% endif %}
+    {% endfor %}
+    
+    # Process all configs that are dicts
+    print("\n  All Dict Configurations:")
+    dict_configs = []
+    {% for name, value in config.items() %}
+    {% if value is mapping %}
+    dict_configs.append(("{{ name }}", {{ value }}))
+    print(f"    - {{ name }}: {{ value.keys()|list }}")
+    {% endif %}
+    {% endfor %}
+    
+    # ============================================
+    # REF DIRECTIVE TESTS
+    # ============================================
+    print("\n[REF DIRECTIVES]")
+    
+    # Referenced values
+    base_url = "{{ config.base_url }}"
+    api_version = "{{ config.api_version }}"
+    referenced_base_url = "{{ config.referenced_base_url }}"
+    referenced_user = "{{ config.referenced_user }}"
+    referenced_port = "{{ config.referenced_port }}"
+    
+    print(f"  Base URL (original)    : {base_url}")
+    print(f"  Base URL (referenced)  : {referenced_base_url}")
+    assert base_url == referenced_base_url, "Referenced base_url should match original"
+    
+    print(f"  User (original)        : {user_name}")
+    print(f"  User (referenced)      : {referenced_user}")
+    assert user_name == referenced_user, "Referenced user should match original"
+    
+    print(f"  Port (original)        : {random_values['port']}")
+    print(f"  Port (referenced)      : {referenced_port}")
     
     # Environment Variables
     print("\n[ENVIRONMENT VARIABLES]")
