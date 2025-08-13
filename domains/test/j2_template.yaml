@@ -1,10 +1,10 @@
-# Jinja2 Template Demo
+# Jinja2 Template Demo with All Directives
 name: "j2_template"
 category: "Template Processing"
 description: |
   Demonstrates the use of Jinja2 templates within the manifest system.
-  This connector showcases different ways to use the !python/template directive
-  including inline context, context from YAML sections, and dynamic context extraction.
+  This manifest showcases all available YAML directives (!time/*, !uuid, !random, etc.)
+  and how they can be used in templates for dynamic test generation.
 
 specs:
   - description: "Template loader correctly processes simple template files"
@@ -15,147 +15,179 @@ specs:
     preconditions: "Manifest contains configs section with values"
     postconditions: "Rendered templates include configuration values"
   
-  - description: "Templates support dynamic context extraction"
-    preconditions: "Context extractor function is provided"
-    postconditions: "Templates receive dynamically generated context based on manifest data"
-  
-  - description: "Templates can generate Python code that executes correctly"
-    preconditions: "Code generation templates are loaded"
-    postconditions: "Generated Python code is syntactically correct and executable"
-  
-  - description: "Template results can be saved to output files"
-    preconditions: "Output path is specified in template configuration"
-    postconditions: "Rendered content is saved to the specified output path"
+  - description: "All YAML directives generate appropriate values"
+    preconditions: "Directives are properly registered in the loader"
+    postconditions: "Generated values are accessible in templates"
 
 tests:
-  - description: "Test Simple Template Rendering"
-    preconditions: "Basic greeting template exists"
-    postconditions: "Template renders with provided name context"
-    function_to_run: !python/template templates/greeting.j2
-
-  # - description: "Test Configuration-Based Template"
-  #   preconditions: "Config template exists and configs section is defined"
-  #   postconditions: "Template renders with configuration values from manifest"
-  #   function_to_run: !python/template
-  #     template: templates/config_report.j2
-  #     context_from: configs
-  #     context:
-  #       report_title: "Configuration Report"
-  #       generated_by: "j2_template_demo"
-
-  # - description: "Test Code Generation Template"
-  #   preconditions: "Code generation template exists"
-  #   postconditions: "Template generates valid Python code"
-  #   function_to_run: !python/template
-  #     template: templates/code_generator.j2
-  #     output: generated/connector_class.py
-  #     context_extractor: !python/function |
-  #       def extract_context(yaml_data):
-  #           """Extract context for code generation from manifest data"""
-  #           # Get connector name from manifest
-  #           name = yaml_data.get('name', 'unknown')
-            
-  #           # Process configs into fields for code generation
-  #           fields = []
-  #           for config in yaml_data.get('configs', []):
-  #               if isinstance(config, dict):
-  #                   field_name = config.get('name', '')
-  #                   fields.append({
-  #                       'name': field_name,
-  #                       'type': 'str',  # Default type
-  #                       'required': config.get('required', False),
-  #                       'description': config.get('description', ''),
-  #                       'is_secret': any(word in field_name.lower() 
-  #                                      for word in ['password', 'token', 'key', 'secret'])
-  #                   })
-            
-  #           # Extract test methods
-  #           test_methods = []
-  #           for test in yaml_data.get('tests', []):
-  #               if isinstance(test, dict):
-  #                   test_methods.append({
-  #                       'name': test.get('description', '').replace(' ', '_').lower(),
-  #                       'description': test.get('description', ''),
-  #                       'preconditions': test.get('preconditions', ''),
-  #                       'postconditions': test.get('postconditions', '')
-  #                   })
-            
-  #           return {
-  #               'class_name': ''.join(w.capitalize() for w in name.split('_')) + 'Connector',
-  #               'module_name': name.lower(),
-  #               'description': yaml_data.get('description', ''),
-  #               'fields': fields,
-  #               'test_methods': test_methods,
-  #               'has_authentication': any(f['is_secret'] for f in fields),
-  #               'category': yaml_data.get('category', 'General')
-  #           }
-  #     context:
-  #       author: "Auto-generated"
-  #       version: "1.0.0"
-
-  # - description: "Test Auto-Context Template"
-  #   preconditions: "Template with auto-context enabled"
-  #   postconditions: "Template receives automatically extracted context"
-  #   function_to_run: !python/template
-  #     template: templates/greeting.j2
-  #     auto_context: true
-  #     context:
-  #       custom_message: "This uses auto-extracted context"
-
-  # - description: "Test Template with Multiple Context Sources"
-  #   preconditions: "All context sources are available"
-  #   postconditions: "Template merges context from multiple sources correctly"
-  #   function_to_run: !python/function |
-  #     def test_multi_context_template(zerg_state=None):
-  #         """Test that templates can merge context from multiple sources"""
-  #         print("Testing multi-context template rendering")
-          
-  #         # This would be the result of template rendering
-  #         # In actual implementation, the template directive would handle this
-  #         from pathlib import Path
-          
-  #         # Simulate template rendering with multiple contexts
-  #         global_context = {"app_name": "J2 Demo"}
-  #         inline_context = {"user": "test_user"}
-  #         yaml_context = {"configs": zerg_state.get("configs", [])} if zerg_state else {}
-          
-  #         # Merge contexts (simulating what the loader does)
-  #         final_context = {**global_context, **inline_context, **yaml_context}
-          
-  #         assert "app_name" in final_context
-  #         assert "user" in final_context
-          
-  #         return True
+  - description: "Test Simple Template Rendering with All Directives"
+    preconditions: "Template file exists at templates/simple.j2"
+    postconditions: "Template renders with all directive-generated values"
+    function_to_run: !python/template templates/simple.j2
 
 references: []
 
 configs:
-  - name: "api_endpoint"
-    description: "The API endpoint URL for the service"
-    value: "https://api.example.com/v1"
-  
-  # - name: "api_key"
-  #   description: "API authentication key"
-  #   value: !env/var API_KEY
-  #   required: true
-  
-  - name: "timeout"
-    description: "Request timeout in seconds"
-    value: 30
-  
-  - name: "max_retries"
-    description: "Maximum number of retry attempts"
-    value: 3
-  
-  - name: "enable_caching"
-    description: "Whether to enable response caching"
-    value: true
-  
-  - name: "cache_ttl"
-    description: "Cache time-to-live in seconds"
-    value: 300
-  
+  # Basic configuration values
+  - name: "report_title"
+    description: "A report title"
+    value: "Directive Showcase Report"
+
+  - name: "user_name"
+    description: "A username"
+    value: "test_user"
+
+  - name: "custom_message"
+    description: "A custom message to include"
+    value: "Testing all YAML directives!"
+
+  # Time-related directives
+  - name: "timestamp_iso"
+    description: "Current timestamp in ISO format"
+    value: !time/now iso
+
+  - name: "timestamp_unix"
+    description: "Current timestamp as Unix epoch"
+    value: !time/now unix
+
+  - name: "timestamp_date"
+    description: "Current date only"
+    value: !time/now date
+
+  - name: "timestamp_datetime"
+    description: "Current datetime in readable format"
+    value: !time/now datetime
+
+  - name: "timestamp_custom"
+    description: "Custom formatted timestamp"
+    value: !time/now custom:%Y-%m-%d_%H-%M-%S
+
+  - name: "today"
+    description: "Today's date"
+    value: !time/today
+
+  - name: "tomorrow"
+    description: "Tomorrow's date"
+    value: !time/offset +1d
+
+  - name: "last_week"
+    description: "Date from last week"
+    value: !time/offset -7d
+
+  - name: "in_two_hours"
+    description: "Time in 2 hours"
+    value: !time/offset +2h
+
+  # UUID directives
+  - name: "session_id"
+    description: "Full UUID v4 for session"
+    value: !uuid uuid4
+
+  - name: "trace_id"
+    description: "UUID v1 for tracing"
+    value: !uuid uuid1
+
+  - name: "short_id"
+    description: "Short 8-char UUID"
+    value: !uuid short
+
+  # Random value directives
+  - name: "random_port"
+    description: "Random port number"
+    value: !random port
+
+  - name: "random_int"
+    description: "Random integer between 1 and 100"
+    value: !random int:1:100
+
+  - name: "random_float"
+    description: "Random float between 0 and 1"
+    value: !random float:0:1
+
+  - name: "random_choice"
+    description: "Random environment selection"
+    value: !random choice:development,staging,production
+
+  - name: "random_string"
+    description: "Random 12-character alphanumeric string"
+    value: !random string:12
+
+  - name: "random_hex"
+    description: "Random 16-character hex string"
+    value: !random hex:16
+
+  # Security-related directives
+  - name: "api_key"
+    description: "Generated API key"
+    value: !secret api_key
+
+  - name: "auth_token"
+    description: "32-byte authentication token"
+    value: !secret token:32
+
+  - name: "temp_password"
+    description: "Temporary 16-character password"
+    value: !secret password:16
+
+  # Hash directives
+  - name: "config_hash_md5"
+    description: "MD5 hash of configuration"
+    value: !hash md5:j2_template_config_v1
+
+  - name: "config_hash_sha256"
+    description: "SHA256 hash of configuration"
+    value: !hash sha256:j2_template_config_v1
+
+  - name: "config_hash_sha1"
+    description: "SHA1 hash of configuration"
+    value: !hash sha1:j2_template_config_v1
+
+  # Base64 encoding
+  - name: "encoded_message"
+    description: "Base64 encoded message"
+    value: !base64 Hello, Template World!
+
+  - name: "encoded_config"
+    description: "Base64 encoded configuration string"
+    value: !base64 encode:config=production&debug=false
+
+  # Evaluation directive (use with caution)
+  - name: "calculated_value"
+    description: "Simple calculated value"
+    value: !eval "2 ** 8"
+
+  - name: "string_length"
+    description: "Length of a string"
+    value: !eval "len('template_testing')"
+
+  - name: "joined_string"
+    description: "Joined string from list"
+    value: !eval "'-'.join(['test', 'template', 'v1'])"
+
+  # Environment variables (optional - will use defaults if not set)
+  - name: "env_home"
+    description: "Home directory from environment"
+    value: !env/var HOME
+
+  - name: "env_user"
+    description: "Current user from environment"
+    value: !env/var USER
+
+  # Format directive (would be resolved in second pass with other configs)
+  # Commented out as it requires special handling
+  # - name: "formatted_message"
+  #   description: "Formatted message with other config values"
+  #   value: !format "User {user_name} started session {session_id}"
+
+  # Metadata
   - name: "log_level"
-    description: "Logging level (DEBUG, INFO, WARNING, ERROR)"
+    description: "Logging level"
     value: "INFO"
-# !Jinja2 Template Demo
+
+  - name: "test_environment"
+    description: "Test environment name"
+    value: "integration"
+
+  - name: "version"
+    description: "Configuration version"
+    value: "1.0.0"

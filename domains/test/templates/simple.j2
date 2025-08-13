@@ -1,0 +1,202 @@
+{# Comprehensive Test Function Template #}
+{# This template demonstrates usage of all YAML directive-generated values #}
+
+def test_comprehensive_directives(zerg_state=None):
+    """
+    Comprehensive test demonstrating all YAML directives in action.
+    
+    This test validates that all directive-generated values are properly
+    loaded and accessible through the template context.
+    
+    Generated at: {{ config.timestamp_iso }}
+    Test ID: {{ config.session_id }}
+    """
+    import json
+    import base64
+    from datetime import datetime
+    
+    print("=" * 80)
+    print("YAML DIRECTIVES COMPREHENSIVE TEST")
+    print("=" * 80)
+    
+    # Basic Configuration
+    print("\n[BASIC CONFIGURATION]")
+    report_title = "{{ config.report_title }}"
+    user_name = "{{ config.user_name | default('anonymous') }}"
+    custom_message = "{{ config.custom_message }}"
+    print(f"Report Title: {report_title}")
+    print(f"User: {user_name}")
+    print(f"Message: {custom_message}")
+    
+    # Time-related Directives
+    print("\n[TIME DIRECTIVES]")
+    timestamps = {
+        "iso": "{{ config.timestamp_iso }}",
+        "unix": {{ config.timestamp_unix | default(0) }},
+        "date": "{{ config.timestamp_date }}",
+        "datetime": "{{ config.timestamp_datetime }}",
+        "custom": "{{ config.timestamp_custom }}",
+        "today": "{{ config.today }}",
+        "tomorrow": "{{ config.tomorrow }}",
+        "last_week": "{{ config.last_week }}",
+        "in_two_hours": "{{ config.in_two_hours }}"
+    }
+    
+    for key, value in timestamps.items():
+        print(f"  {key:15} : {value}")
+    
+    # Validate Unix timestamp is numeric
+    assert isinstance(timestamps["unix"], int), "Unix timestamp should be an integer"
+    
+    # UUID Directives
+    print("\n[UUID DIRECTIVES]")
+    session_id = "{{ config.session_id }}"
+    trace_id = "{{ config.trace_id }}"
+    short_id = "{{ config.short_id }}"
+    
+    print(f"  Session ID (v4) : {session_id}")
+    print(f"  Trace ID (v1)   : {trace_id}")
+    print(f"  Short ID        : {short_id}")
+    
+    # Validate UUID formats
+    assert len(session_id) == 36, f"UUID v4 should be 36 chars, got {len(session_id)}"
+    assert len(trace_id) == 36, f"UUID v1 should be 36 chars, got {len(trace_id)}"
+    assert len(short_id) == 8, f"Short UUID should be 8 chars, got {len(short_id)}"
+    assert all(c in '-0123456789abcdef' for c in session_id.lower()), "Invalid UUID v4 format"
+    
+    # Random Value Directives
+    print("\n[RANDOM VALUE DIRECTIVES]")
+    random_values = {
+        "port": {{ config.random_port }},
+        "integer": {{ config.random_int }},
+        "float": {{ config.random_float }},
+        "choice": "{{ config.random_choice }}",
+        "string": "{{ config.random_string }}",
+        "hex": "{{ config.random_hex }}"
+    }
+    
+    for key, value in random_values.items():
+        print(f"  {key:10} : {value}")
+    
+    # Validate random values
+    assert 1024 <= random_values["port"] <= 65535, f"Port {random_values['port']} out of range"
+    assert 1 <= random_values["integer"] <= 100, f"Random int {random_values['integer']} out of range"
+    assert 0 <= random_values["float"] <= 1, f"Random float {random_values['float']} out of range"
+    assert random_values["choice"] in ["development", "staging", "production"], "Invalid environment choice"
+    assert len(random_values["string"]) == 12, f"Random string should be 12 chars, got {len(random_values['string'])}"
+    assert len(random_values["hex"]) == 16, f"Random hex should be 16 chars, got {len(random_values['hex'])}"
+    assert all(c in '0123456789abcdef' for c in random_values["hex"].lower()), "Invalid hex string"
+    
+    # Security Directives
+    print("\n[SECURITY DIRECTIVES]")
+    api_key = "{{ config.api_key }}"
+    auth_token = "{{ config.auth_token }}"
+    temp_password = "{{ config.temp_password }}"
+    
+    print(f"  API Key        : {api_key[:10]}...{api_key[-4:]}")  # Partially masked
+    print(f"  Auth Token     : {auth_token[:8]}...{auth_token[-4:]}")  # Partially masked
+    print(f"  Temp Password  : {'*' * len(temp_password)}")  # Fully masked
+    
+    # Validate security tokens
+    assert api_key.startswith("sk_"), f"API key should start with 'sk_', got {api_key[:3]}"
+    assert len(auth_token) == 64, f"Auth token should be 64 chars (32 bytes hex), got {len(auth_token)}"
+    assert len(temp_password) == 16, f"Temp password should be 16 chars, got {len(temp_password)}"
+    
+    # Hash Directives
+    print("\n[HASH DIRECTIVES]")
+    hashes = {
+        "MD5": "{{ config.config_hash_md5 }}",
+        "SHA256": "{{ config.config_hash_sha256 }}",
+        "SHA1": "{{ config.config_hash_sha1 }}"
+    }
+    
+    for algo, hash_value in hashes.items():
+        print(f"  {algo:7} : {hash_value}")
+    
+    # Validate hash lengths
+    assert len(hashes["MD5"]) == 32, f"MD5 should be 32 chars, got {len(hashes['MD5'])}"
+    assert len(hashes["SHA256"]) == 64, f"SHA256 should be 64 chars, got {len(hashes['SHA256'])}"
+    assert len(hashes["SHA1"]) == 40, f"SHA1 should be 40 chars, got {len(hashes['SHA1'])}"
+    
+    # Base64 Directives
+    print("\n[BASE64 DIRECTIVES]")
+    encoded_message = "{{ config.encoded_message }}"
+    encoded_config = "{{ config.encoded_config }}"
+    
+    print(f"  Encoded Message : {encoded_message}")
+    print(f"  Encoded Config  : {encoded_config}")
+    
+    # Decode and verify
+    try:
+        decoded_message = base64.b64decode(encoded_message).decode('utf-8')
+        print(f"  Decoded Message : {decoded_message}")
+        assert decoded_message == "Hello, Template World!", "Base64 decode mismatch"
+    except Exception as e:
+        print(f"  Failed to decode message: {e}")
+    
+    # Evaluation Directives
+    print("\n[EVALUATION DIRECTIVES]")
+    calculated_value = {{ config.calculated_value }}
+    string_length = {{ config.string_length }}
+    joined_string = "{{ config.joined_string }}"
+    
+    print(f"  2^8 Calculation : {calculated_value}")
+    print(f"  String Length   : {string_length}")
+    print(f"  Joined String   : {joined_string}")
+    
+    # Validate evaluated values
+    assert calculated_value == 256, f"2^8 should be 256, got {calculated_value}"
+    assert string_length == 16, f"Length of 'template_testing' should be 16, got {string_length}"
+    assert joined_string == "test-template-v1", f"Joined string mismatch: {joined_string}"
+    
+    # Environment Variables
+    print("\n[ENVIRONMENT VARIABLES]")
+    {% if config.env_home and not config.env_home.startswith('<ENV_') %}
+    env_home = "{{ config.env_home }}"
+    print(f"  HOME : {env_home}")
+    {% else %}
+    print(f"  HOME : Not set or not available")
+    {% endif %}
+    
+    {% if config.env_user and not config.env_user.startswith('<ENV_') %}
+    env_user = "{{ config.env_user }}"
+    print(f"  USER : {env_user}")
+    {% else %}
+    print(f"  USER : Not set or not available")
+    {% endif %}
+    
+    # Test Metadata
+    print("\n[TEST METADATA]")
+    metadata = {
+        "log_level": "{{ config.log_level }}",
+        "environment": "{{ config.test_environment }}",
+        "version": "{{ config.version }}",
+        "total_configs": {{ config_metadata.total }},
+        "required_configs": {{ config_metadata.required_count }},
+        "optional_configs": {{ config_metadata.optional_count }},
+        "secret_configs": {{ config_metadata.secret_count }}
+    }
+    
+    for key, value in metadata.items():
+        print(f"  {key:20} : {value}")
+    
+    # Summary Statistics
+    print("\n[SUMMARY]")
+    print(f"  Total configurations loaded: {{ config_metadata.total }}")
+    print(f"  Configuration names: {{ config_metadata.all_names | length }} items")
+    print(f"  Secrets detected: {{ config_metadata.secrets | join(', ') if config_metadata.secrets else 'None' }}")
+    
+    # Test Context Information
+    print("\n[TEST CONTEXT]")
+    print(f"  Test Name: {{ test_context.name }}")
+    print(f"  Category: {{ test_context.category }}")
+    print(f"  Description: {{ test_context.description[:50] }}...")
+    
+    # Validation Summary
+    print("\n" + "=" * 80)
+    print("ALL DIRECTIVE TESTS PASSED!")
+    print(f"Session ID: {session_id}")
+    print(f"Completed at: {datetime.now().isoformat()}")
+    print("=" * 80)
+    
+    return True
