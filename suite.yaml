@@ -37,10 +37,21 @@ tests:
           return True
 
 # common references to apply to all benchmarks 
-references: []
-  # - url: "https://news.google.com/"
-  #   file_path: null
-  #   format: "html"
+references: 
+  - description: "example JPG"
+    file_path: "searanch_jpg.jpg"
+    workspace_path: "images/searanch_jpg.jpg"
+    format: "jpg"
+    required: true
+    read_only: true
+
+  - description: "example environment text"
+    file_path: "text.txt"
+    workspace_path: "text/text.txt"
+    format: "txt"
+    required: true
+    read_only: true
+
 
 # common configs to apply to all benchmarks 
 configs: 

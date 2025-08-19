@@ -3,6 +3,29 @@ name: "headlines"
 category: "News"
 description: "Create an API integration to retrieve the top headlines from Google News. The connector should be able to fetch the single top headline and then the top 10 headlines without using an API key."
 
+stages:
+  - name: inline stage
+    type: before
+    description: placeholder inline core headlines stage
+    preconditions: None
+    postconditions: None
+    code_to_run: |
+      # demo inline stage
+      def new_stage_1():
+          """
+          new_stage stage implementation
+          """
+
+          print(f"Executing new_stage_1")
+          return True
+
+  - name: external file program 
+    type: after
+    description: placeholder external core headlines stage
+    preconditions: None
+    postconditions: None
+    code_to_run: !python/program stages/2-ext-demo-stage.py
+
 specs:
   - description: "Connector retrieves the top headline from Google News"
     preconditions: "A valid endpoint configuration."

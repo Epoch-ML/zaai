@@ -17,6 +17,14 @@ specs:
     postconditions: |
       No postconditions
 
+references: 
+  - description: "example core domain PNG"
+    file_path: "searanch_png.png"
+    workspace_path: "images/searanch_png.png"
+    format: "png"
+    required: true
+    read_only: true
+
 # common configs to apply to all benchmarks 
 configs: 
     - name: "domain_config"

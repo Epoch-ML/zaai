@@ -1,0 +1,35 @@
+// === text.txt ===
+This is a plain text file for testing the FSTextFile class.
+
+It contains multiple lines of text to demonstrate:
+- Line counting functionality
+- Word counting features  
+- Character counting capabilities
+- Search functionality within text content
+
+The file includes various formatting elements:
+• Bullet points
+• Numbers: 123, 456, 789
+• Special characters: @#$%^&*()
+• URLs: https://example.com
+• Email addresses: test@example.com
+
+This text file can be used to verify that the text file handler:
+1. Correctly reads and displays content
+2. Provides accurate statistics (lines, words, characters)
+3. Supports text search operations
+4. Handles various text formats properly
+5. Maintains content integrity during operations
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod 
+tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim 
+veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea 
+commodo consequat.
+
+File information:
+- Type: Plain text
+- Encoding: UTF-8
+- Purpose: Testing FSTextFile functionality
+- Created: For development testing
+
+End of test file.
