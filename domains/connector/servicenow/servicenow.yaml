@@ -1,0 +1,226 @@
+# ServiceNow ITSM Service
+name: "servicenow"
+category: "ITSM Service"
+description: |
+  Create a connector that uses the ServiceNow API to manage incidents, problems, and change requests. 
+  The connector must save the ServiceNow instance URL, username, and password, and provide functionality
+  to create, update, and retrieve incidents, problems, and change requests.
+
+specs:
+  - description: "Connector stores ServiceNow authentication credentials"
+    preconditions: "The system state has not yet been configured for ServiceNow."
+    postconditions: "The connector successfully saves the ServiceNow instance URL, username, and password to state."
+
+  - description: "Connector creates a new incident in ServiceNow"
+    preconditions: "ServiceNow is configured with valid credentials."
+    postconditions: "The connector creates a new incident in ServiceNow."
+
+  - description: "Connector retrieves incidents from ServiceNow"
+    preconditions: "ServiceNow is configured and incidents exist in the instance."
+    postconditions: "The connector retrieves and displays a list of incidents from ServiceNow."
+
+  - description: "Connector updates an existing incident in ServiceNow"
+    preconditions: "ServiceNow is configured and a specific incident exists to be updated."
+    postconditions: "The connector updates the specified incident with new information."
+
+  - description: "Connector executes without additional user intervention"
+    preconditions: "All necessary packages are pre-installed."
+    postconditions: "The connector code runs and executes correctly (e.g. passes a health check)."
+
+tests:
+  - description: "Create ServiceNow Incident"
+    preconditions: "ServiceNow configuration is stored in state."
+    postconditions: "Connector creates a new incident in ServiceNow."
+    function_to_run: !python/function |
+      def test_create_servicenow_incident(zerg_state=None):
+        """Test that the ServiceNow connector creates a new incident."""
+        print("Creating new incident using ServiceNow API")
+        
+        assert zerg_state, "this test requires valid zerg_state"
+
+        # Ensure required keys exist; use dict.get() for safe retrieval.
+        servicenow_instance = zerg_state.get("servicenow_instance").get("value")
+        servicenow_username = zerg_state.get("servicenow_username").get("value")
+        servicenow_password = zerg_state.get("servicenow_password").get("value")
+
+        # Basic assertions to verify all necessary fields are present.
+        assert servicenow_instance, "Missing servicenow_instance in agent state"
+        assert servicenow_username, "Missing servicenow_username in agent state"
+        assert servicenow_password, "Missing servicenow_password in agent state"
+
+        # Attempt to import the ServiceNowConnector object.
+        from connector import ServiceNowConnector
+
+        connector = ServiceNowConnector(
+            servicenow_instance=servicenow_instance,
+            servicenow_username=servicenow_username,
+            servicenow_password=servicenow_password
+        )
+
+        # Get the first available assignment group
+        assignment_groups = connector.get_assignment_groups(limit=1)
+        assert assignment_groups and len(assignment_groups) > 0, "No assignment groups found in ServiceNow"
+        assignment_group_id = assignment_groups[0]["sys_id"]
+
+        incident_data = {
+            "short_description": "Test Incident",
+            "description": "This is a test incident created by the connector.",
+            "urgency": "2",
+            "impact": "2",
+            "assignment_group": assignment_group_id
+        }
+
+        incident_sys_id = connector.create_incident(
+            incident_data=incident_data
+        )
+
+        assert incident_sys_id, "Incident was not created successfully"
+
+        return True
+
+  - description: "Retrieve ServiceNow Incidents"
+    preconditions: "ServiceNow is configured and incidents exist in the instance."
+    postconditions: "The connector retrieves a list of incidents from ServiceNow."
+    function_to_run: !python/function |
+      def test_retrieve_servicenow_incidents(zerg_state=None):
+          """Test that the ServiceNow connector retrieves incidents."""
+          print("Retrieving incidents from ServiceNow")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          servicenow_instance = zerg_state.get("servicenow_instance").get("value")
+          servicenow_username = zerg_state.get("servicenow_username").get("value")
+          servicenow_password = zerg_state.get("servicenow_password").get("value")
+
+          assert servicenow_instance, "Missing servicenow_instance in agent state"
+          assert servicenow_username, "Missing servicenow_username in agent state"
+          assert servicenow_password, "Missing servicenow_password in agent state"
+
+          from connector import ServiceNowConnector
+
+          connector = ServiceNowConnector(
+              servicenow_instance=servicenow_instance,
+              servicenow_username=servicenow_username,
+              servicenow_password=servicenow_password
+          )  
+
+          # Query active incidents
+          incidents = connector.get_incidents(
+              query_params={"active": "true"},
+              limit=10
+          )
+
+          assert incidents and len(incidents) > 0, "No active incidents retrieved from ServiceNow"
+
+          return True
+
+  - description: "Update ServiceNow Incident"
+    preconditions: "ServiceNow is configured and a specific incident exists to be updated."
+    postconditions: "The connector updates the specified incident with new information."
+    function_to_run: !python/function |
+      def test_update_servicenow_incident(zerg_state=None):
+          """Test that the ServiceNow connector updates an existing incident."""
+          print("Updating existing ServiceNow incident")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          servicenow_instance = zerg_state.get("servicenow_instance").get("value")
+          servicenow_username = zerg_state.get("servicenow_username").get("value")
+          servicenow_password = zerg_state.get("servicenow_password").get("value")
+
+          assert servicenow_instance, "Missing servicenow_instance in agent state"
+          assert servicenow_username, "Missing servicenow_username in agent state"
+          assert servicenow_password, "Missing servicenow_password in agent state"
+
+          from connector import ServiceNowConnector
+
+          connector = ServiceNowConnector(
+              servicenow_instance=servicenow_instance,
+              servicenow_username=servicenow_username,
+              servicenow_password=servicenow_password
+          )  
+
+          # Get the first active incident
+          incidents = connector.get_incidents(query_params={"active": "true"}, limit=1)
+          assert incidents and len(incidents) > 0, "No active incidents found in ServiceNow"
+          incident_sys_id = incidents[0]["sys_id"]
+
+          update_data = {
+              "short_description": "Updated Test Incident",
+              "work_notes": "This incident has been updated by the connector.",
+              "priority": "3"
+          }
+
+          result = connector.update_incident(
+              incident_sys_id=incident_sys_id,
+              update_data=update_data
+          )
+
+          assert result is True, "Incident was not updated successfully"
+
+          return True
+
+  - description: "Create ServiceNow Change Request"
+    preconditions: "ServiceNow is configured with valid credentials."
+    postconditions: "The connector creates a new change request in ServiceNow."
+    function_to_run: !python/function |
+      def test_create_servicenow_change_request(zerg_state=None):
+          """Test that the ServiceNow connector creates a new change request."""
+          print("Creating new change request using ServiceNow API")
+          
+          assert zerg_state, "this test requires valid zerg_state"
+
+          # Ensure required keys exist; use dict.get() for safe retrieval.
+          servicenow_instance = zerg_state.get("servicenow_instance").get("value")
+          servicenow_username = zerg_state.get("servicenow_username").get("value")
+          servicenow_password = zerg_state.get("servicenow_password").get("value")
+
+          # Basic assertions to verify all necessary fields are present.
+          assert servicenow_instance, "Missing servicenow_instance in agent state"
+          assert servicenow_username, "Missing servicenow_username in agent state"
+          assert servicenow_password, "Missing servicenow_password in agent state"
+
+          # Attempt to import the ServiceNowConnector object.
+          from connector import ServiceNowConnector
+
+          connector = ServiceNowConnector(
+              servicenow_instance=servicenow_instance,
+              servicenow_username=servicenow_username,
+              servicenow_password=servicenow_password
+          )
+
+          # Get the first available assignment group
+          assignment_groups = connector.get_assignment_groups(limit=1)
+          assert assignment_groups and len(assignment_groups) > 0, "No assignment groups found in ServiceNow"
+          assignment_group_id = assignment_groups[0]["sys_id"]
+
+          change_data = {
+              "short_description": "Test Change Request",
+              "description": "This is a test change request created by the connector.",
+              "risk": "3",
+              "impact": "2",
+              "assignment_group": assignment_group_id,
+              "type": "normal"
+          }
+
+          change_sys_id = connector.create_change_request(
+              change_data=change_data
+          )
+
+          assert change_sys_id, "Change request was not created successfully"
+
+          return True
+
+references: []
+
+configs:
+  - name: "servicenow_instance"
+    description: "ServiceNow instance URL (e.g. 'company.service-now.com')"
+    value: !env/var
+  - name: "servicenow_username"
+    description: "ServiceNow username for authentication"
+    value: !env/var
+  - name: "servicenow_password"
+    description: "ServiceNow password for authentication"
+    value: !env/var
+# !# ServiceNow ITSM Service

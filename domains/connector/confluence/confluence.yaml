@@ -1,0 +1,246 @@
+# Confluence Documentation Service
+name: "confluence"
+category: "Documentation Service"
+description: |
+  Create a connector that uses the Confluence API to manage spaces, pages, and content. 
+  The connector must save the Confluence domain URL, username/email, and API token, and provide functionality
+  to create, update, and retrieve spaces, pages, and attachments.
+
+specs:
+  - description: "Connector stores Confluence authentication credentials"
+    preconditions: "The system state has not yet been configured for Confluence."
+    postconditions: "The connector successfully saves the Confluence domain URL, username/email, and API token to state."
+
+  - description: "Connector creates a new page in Confluence"
+    preconditions: "Confluence is configured with valid credentials and a space exists."
+    postconditions: "The connector creates a new page in a Confluence space."
+
+  - description: "Connector retrieves pages from a Confluence space"
+    preconditions: "Confluence is configured and pages exist in the space."
+    postconditions: "The connector retrieves and displays a list of pages from a Confluence space."
+
+  - description: "Connector updates an existing page in Confluence"
+    preconditions: "Confluence is configured and a specific page exists to be updated."
+    postconditions: "The connector updates the specified page with new content."
+
+  - description: "Connector executes without additional user intervention"
+    preconditions: "All necessary packages are pre-installed."
+    postconditions: "The connector code runs and executes correctly (e.g. passes a health check)."
+
+tests:
+  - description: "Create Confluence Page"
+    preconditions: "Confluence configuration is stored in state."
+    postconditions: "Connector creates a new page in a Confluence space."
+    function_to_run: !python/function |
+      def test_create_confluence_page(zerg_state=None):
+        """Test that the Confluence connector creates a new page."""
+        print("Creating new page using Confluence API")
+        
+        assert zerg_state, "this test requires valid zerg_state"
+
+        # Ensure required keys exist; use dict.get() for safe retrieval.
+        confluence_url = zerg_state.get("confluence_url").get("value")
+        confluence_username = zerg_state.get("confluence_username").get("value")
+        confluence_api_token = zerg_state.get("confluence_api_token").get("value")
+
+        # Basic assertions to verify all necessary fields are present.
+        assert confluence_url, "Missing confluence_url in agent state"
+        assert confluence_username, "Missing confluence_username in agent state"
+        assert confluence_api_token, "Missing confluence_api_token in agent state"
+
+        # Attempt to import the ConfluenceConnector object.
+        from connector import ConfluenceConnector
+
+        connector = ConfluenceConnector(
+            confluence_url=confluence_url,
+            confluence_username=confluence_username,
+            confluence_api_token=confluence_api_token
+        )
+
+        # Get the first available space
+        spaces = connector.get_spaces(limit=1)
+        assert spaces and len(spaces) > 0, "No spaces found in Confluence"
+        space_key = spaces[0]["key"]
+
+        page_data = {
+            "title": "Test Page",
+            "content": "<p>This is a test page created by the connector.</p>",
+            "parent_id": None  # Root level page
+        }
+
+        page_id = connector.create_page(
+            space_key=space_key,
+            page_data=page_data
+        )
+
+        assert page_id, "Page was not created successfully"
+
+        return True
+
+  - description: "Retrieve Confluence Pages"
+    preconditions: "Confluence is configured and pages exist in the space."
+    postconditions: "The connector retrieves a list of pages from a Confluence space."
+    function_to_run: !python/function |
+      def test_retrieve_confluence_pages(zerg_state=None):
+          """Test that the Confluence connector retrieves pages from a space."""
+          print("Retrieving pages from Confluence space")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          confluence_url = zerg_state.get("confluence_url").get("value")
+          confluence_username = zerg_state.get("confluence_username").get("value")
+          confluence_api_token = zerg_state.get("confluence_api_token").get("value")
+
+          assert confluence_url, "Missing confluence_url in agent state"
+          assert confluence_username, "Missing confluence_username in agent state"
+          assert confluence_api_token, "Missing confluence_api_token in agent state"
+
+          from connector import ConfluenceConnector
+
+          connector = ConfluenceConnector(
+              confluence_url=confluence_url,
+              confluence_username=confluence_username,
+              confluence_api_token=confluence_api_token
+          )  
+
+          # Get the first available space
+          spaces = connector.get_spaces(limit=1)
+          assert spaces and len(spaces) > 0, "No spaces found in Confluence"
+          space_key = spaces[0]["key"]
+          
+          # Get pages from the space
+          pages = connector.get_pages(
+              space_key=space_key,
+              limit=10
+          )
+
+          assert pages and len(pages) > 0, "No pages retrieved from space"
+
+          return True
+
+  - description: "Update Confluence Page"
+    preconditions: "Confluence is configured and a specific page exists to be updated."
+    postconditions: "The connector updates the specified page with new content."
+    function_to_run: !python/function |
+      def test_update_confluence_page(zerg_state=None):
+          """Test that the Confluence connector updates an existing page."""
+          print("Updating existing Confluence page")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          confluence_url = zerg_state.get("confluence_url").get("value")
+          confluence_username = zerg_state.get("confluence_username").get("value")
+          confluence_api_token = zerg_state.get("confluence_api_token").get("value")
+
+          assert confluence_url, "Missing confluence_url in agent state"
+          assert confluence_username, "Missing confluence_username in agent state"
+          assert confluence_api_token, "Missing confluence_api_token in agent state"
+
+          from connector import ConfluenceConnector
+
+          connector = ConfluenceConnector(
+              confluence_url=confluence_url,
+              confluence_username=confluence_username,
+              confluence_api_token=confluence_api_token
+          )  
+
+          # Get the first available space
+          spaces = connector.get_spaces(limit=1)
+          assert spaces and len(spaces) > 0, "No spaces found in Confluence"
+          space_key = spaces[0]["key"]
+          
+          # Get the first page from that space
+          pages = connector.get_pages(space_key=space_key, limit=1)
+          assert pages and len(pages) > 0, "No pages found in space"
+          page_id = pages[0]["id"]
+          current_version = pages[0]["version"]["number"]
+
+          update_data = {
+              "title": "Updated Test Page",
+              "content": "<p>This page has been updated by the connector.</p>",
+              "version": current_version + 1
+          }
+
+          result = connector.update_page(
+              page_id=page_id,
+              update_data=update_data
+          )
+
+          assert result is True, "Page was not updated successfully"
+
+          return True
+
+  - description: "Add Attachment to Confluence Page"
+    preconditions: "Confluence is configured and a page exists to add an attachment to."
+    postconditions: "The connector adds an attachment to a Confluence page."
+    function_to_run: !python/function |
+      def test_add_confluence_attachment(zerg_state=None):
+          """Test that the Confluence connector adds an attachment to a page."""
+          print("Adding attachment to Confluence page")
+          
+          assert zerg_state, "this test requires valid zerg_state"
+
+          # Ensure required keys exist; use dict.get() for safe retrieval.
+          confluence_url = zerg_state.get("confluence_url").get("value")
+          confluence_username = zerg_state.get("confluence_username").get("value")
+          confluence_api_token = zerg_state.get("confluence_api_token").get("value")
+
+          # Basic assertions to verify all necessary fields are present.
+          assert confluence_url, "Missing confluence_url in agent state"
+          assert confluence_username, "Missing confluence_username in agent state"
+          assert confluence_api_token, "Missing confluence_api_token in agent state"
+
+          # Attempt to import the ConfluenceConnector object.
+          from connector import ConfluenceConnector
+
+          connector = ConfluenceConnector(
+              confluence_url=confluence_url,
+              confluence_username=confluence_username,
+              confluence_api_token=confluence_api_token
+          )
+
+          # Get the first available space
+          spaces = connector.get_spaces(limit=1)
+          assert spaces and len(spaces) > 0, "No spaces found in Confluence"
+          space_key = spaces[0]["key"]
+          
+          # Get the first page from that space
+          pages = connector.get_pages(space_key=space_key, limit=1)
+          assert pages and len(pages) > 0, "No pages found in space"
+          page_id = pages[0]["id"]
+          
+          # Create a sample file to upload
+          import tempfile
+          
+          temp_file = tempfile.NamedTemporaryFile(suffix=".txt", delete=False)
+          temp_file.write(b"This is a test attachment from the Confluence connector.")
+          temp_file.close()
+          
+          attachment_id = connector.add_attachment(
+              page_id=page_id,
+              file_path=temp_file.name,
+              file_name="test_attachment.txt",
+              content_type="text/plain"
+          )
+          
+          # Clean up temporary file
+          import os
+          os.unlink(temp_file.name)
+
+          assert attachment_id, "Attachment was not added successfully"
+
+          return True
+
+references: []
+
+configs:
+  - name: "confluence_url"
+    description: "Confluence instance URL (e.g. 'company.atlassian.net/wiki')"
+    value: !env/var
+  - name: "confluence_username"
+    description: "Confluence username or email for authentication"
+    value: !env/var
+  - name: "confluence_api_token"
+    description: "Confluence API token for authentication"
+    value: !env/var
+# !# Confluence Documentation Service

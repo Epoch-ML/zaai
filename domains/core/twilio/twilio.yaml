@@ -1,0 +1,200 @@
+# Twilio SMS Connector
+name: "twilio"
+category: "SMS Service"
+description: |
+  Create a connector that uses the Twilio API to send SMS messages.
+  The connector must store the Twilio Account SID, Auth Token, and sender phone number in state,
+  and provide functionality to send SMS messages.
+  The connector should be able to:
+    - send an SMS to a designated recipient,
+    - send an SMS that includes the top 10 Google News headlines,
+    - send an SMS that includes the current weather for a given location.
+  The connector code should also run without errors or user intervention.
+
+specs:
+  - description: "Connector stores Twilio credentials and sender phone number"
+    preconditions: "No Twilio configuration present in state."
+    postconditions: "The connector successfully saves the Twilio Account SID, Auth Token, and sender phone number to state."
+  - description: "Connector sends an SMS to the designated recipient"
+    preconditions: "Twilio is configured with valid credentials and a sender phone number."
+    postconditions: "The connector sends an SMS to the recipient phone number."
+  - description: "Connector sends an SMS including the top 10 Google News headlines"
+    preconditions: "Twilio is configured and the connector can fetch Google News headlines."
+    postconditions: "The SMS sent by the connector includes exactly the top 10 headlines."
+  - description: "Connector sends an SMS including current weather for a given location"
+    preconditions: "Twilio is configured and weather data for the location is available."
+    postconditions: "The SMS sent by the connector includes the current weather data for the specified location."
+  - description: "Connector executes without additional user intervention"
+    preconditions: "All necessary packages are pre-installed."
+    postconditions: "The connector code runs and passes a basic health check."
+
+tests:
+  - description: "Store Twilio Configuration to State"
+    preconditions: "No Twilio configuration is set in state."
+    postconditions: "State contains the Twilio Account SID, Auth Token, and sender phone number."
+    function_to_run: !python/function |
+      def test_store_twilio_config(zerg_state=None):
+          """Test storing Twilio credentials and sender phone to state."""
+          print("Storing Twilio configuration to state")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          twilio_account_sid = zerg_state.get("twilio_account_sid").get("value")
+          twilio_auth_token = zerg_state.get("twilio_auth_token").get("value")
+          sender_phone = zerg_state.get("twilio_sender_phone").get("value")
+          recipient_phone = zerg_state.get("recipient_phone").get("value")
+
+          assert twilio_account_sid, "Account SID not stored"
+          assert twilio_auth_token, "Auth Token not stored"
+          assert sender_phone, "Sender phone not stored"
+          assert recipient_phone, "Recipient phone not stored"
+
+          return True
+
+  - description: "Send SMS to Recipient"
+    preconditions: "Twilio configuration is stored in state."
+    postconditions: "Connector sends an SMS to the designated recipient phone number."
+    function_to_run: !python/function |
+      def test_send_sms_to_recipient(zerg_state=None):
+          """Test that the Twilio connector sends an SMS to the recipient."""
+          print("Sending SMS to recipient")
+
+          # Retrieve configuration from state (assumed to be available)
+          
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          twilio_account_sid = zerg_state.get("twilio_account_sid").get("value")
+          twilio_auth_token = zerg_state.get("twilio_auth_token").get("value")
+          sender_phone = zerg_state.get("twilio_sender_phone").get("value")
+          recipient_phone = zerg_state.get("recipient_phone").get("value")
+
+          assert twilio_account_sid, "Account SID not stored"
+          assert twilio_auth_token, "Auth Token not stored"
+          assert sender_phone, "Sender phone not stored"
+          assert recipient_phone, "Recipient phone not stored"
+
+          connector = TwilioConnector(
+              account_sid=twilio_account_sid,
+              auth_token=twilio_auth_token,
+              sender_phone=sender_phone
+          )
+
+          result = connector.send_sms(
+              recipient=recipient_phone,
+              message="Test SMS"
+          )
+
+          assert result is True, "SMS not sent successfully"
+          
+          return True
+
+  - description: "Send SMS Including Top 10 Headlines"
+    preconditions: "Twilio is configured and Google News headlines are available."
+    postconditions: "The SMS sent includes exactly the top 10 headlines."
+    function_to_run: !python/function |
+      def test_send_sms_with_headlines(zerg_state=None):
+          """Test that the Twilio connector sends an SMS with top 10 Google News headlines."""
+          print("Sending SMS with top 10 headlines")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          twilio_account_sid = zerg_state.get("twilio_account_sid").get("value")
+          twilio_auth_token = zerg_state.get("twilio_auth_token").get("value")
+          sender_phone = zerg_state.get("twilio_sender_phone").get("value")
+          recipient_phone = zerg_state.get("recipient_phone").get("value")
+
+          assert twilio_account_sid, "Account SID not stored"
+          assert twilio_auth_token, "Auth Token not stored"
+          assert sender_phone, "Sender phone not stored"
+          assert recipient_phone, "Recipient phone not stored"
+              
+          connector = TwilioConnector(
+              account_sid=twilio_account_sid,
+              auth_token=twilio_auth_token,
+              sender_phone=sender_phone
+          )
+
+          headlines = connector.get_top_google_headlines(count=10)
+          message = "Top 10 Headlines:\n" + "\n".join(f"{i+1}. {h}" for i, h in enumerate(headlines))
+
+          result = connector.send_sms(
+              recipient=recipient_phone,
+              message=message
+          )
+
+          assert result is True, "SMS with headlines not sent successfully"
+          
+          return True
+
+  - description: "Send SMS Including Current Weather"
+    preconditions: "Twilio is configured and weather data for the location is available."
+    postconditions: "The SMS sent includes the current weather for the specified location."
+    function_to_run: !python/function |
+      def test_send_sms_with_weather(zerg_state=None):
+          """Test that the Twilio connector sends an SMS with current weather data."""
+          print("Sending SMS with current weather")
+          
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          twilio_account_sid = zerg_state.get("twilio_account_sid").get("value")
+          twilio_auth_token = zerg_state.get("twilio_auth_token").get("value")
+          sender_phone = zerg_state.get("twilio_sender_phone").get("value")
+          recipient_phone = zerg_state.get("recipient_phone").get("value")
+          location = zerg_state.get("location").get("value")
+
+          assert twilio_account_sid, "Account SID not stored"
+          assert twilio_auth_token, "Auth Token not stored"
+          assert sender_phone, "Sender phone not stored"
+          assert recipient_phone, "Recipient phone not stored"
+          assert location, "Location not stored"
+              
+          connector = TwilioConnector(
+              account_sid=twilio_account_sid,
+              auth_token=twilio_auth_token,
+              sender_phone=sender_phone
+          )
+          
+          weather = connector.get_current_weather(location=location)
+          message = f"Current weather in {location}:\n{weather}"
+          result = connector.send_sms(
+              recipient=recipient_phone,
+              message=message
+          )
+
+          assert result is True, "SMS with weather data not sent successfully"
+          
+          return True
+
+  - description: "Connector Code Execution Test"
+    preconditions: "All necessary packages are installed and configuration is set."
+    postconditions: "The connector code runs correctly without errors or user intervention."
+    function_to_run: !python/function |
+      def test_twilio_execution(zerg_state=None):
+          """Test that the Twilio connector code executes without error."""
+          print("Executing Twilio connector code")
+          
+          connector = TwilioConnector()
+          result = connector.health_check()
+          
+          assert result is True, "Connector health check failed"
+
+          return True
+
+references: []
+configs:
+  - name: "twilio_account_sid"
+    description: "Twilio Account SID for sending SMS"
+    value: !env/var
+  - name: "twilio_auth_token"
+    description: "Twilio Auth Token for authentication"
+    value: !env/var
+  - name: "twilio_sender_phone"
+    description: "Sender phone number (in E.164 format, e.g., +12345678901)"
+    value: !env/var
+  - name: "recipient_phone"
+    description: "Recipient phone number for testing SMS sending"
+    value: "+16073514585"
+  - name: "location"
+    description: "Location for retrieving weather data (e.g., 'San Jose, CA')"
+    value: "San Jose, CA"
+# !Twilio Email Connector

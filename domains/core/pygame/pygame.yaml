@@ -1,0 +1,70 @@
+# Pygame Game 2d
+name: "pygame"
+category: "Game Development"
+description: |
+  Build a simple one-file Pygame game that runs. Ensure required packages (e.g., pygame) are 
+  installed and the game can open a window, run a game loop, and handle quit events
+
+specs:
+  - description: "Game file is syntactically correct and executable"
+    preconditions: "The game file exists at the specified path"
+    postconditions: "The game file runs without syntax errors"
+
+  - description: "Game opens a Pygame window and starts a game loop"
+    preconditions: "Pygame is installed and the game file is executed"
+    postconditions: "The Pygame window opens and the game loop runs without crashing"
+
+  - description: "Game processes basic events and user input correctly"
+    preconditions: "Game window is open and the event loop is running"
+    postconditions: "The game processes events, such as user input, or exit signals to quit correctly"
+
+  - description: "Game includes content per the designated game description and synopsis"
+    preconditions: "Complete game implementation"
+    postconditions: |
+      Game includes content per the required genre, description and synopsis 
+      including all relevant game play mechanics as pre required;
+
+  - description: "Game runs inside the designated environment"
+    preconditions: "Environment is prepared and required packages are installed"
+    postconditions: "The game executes successfully within the environment"
+
+  - description: "Required packages are installed and used"
+    preconditions: "Access to pip or container management is available"
+    postconditions: "The required packages are installed and imported and used successfully by the game"
+
+tests:
+  - description: "Validate Game File Execution"
+    preconditions: "The game implementation exists"
+    postconditions: "The game executes without syntax errors and exits correctly per usage"
+    function_to_run: !python/function |
+      def test_game_execution(zerg_state=None):
+          """Test that the Pygame game file executes without syntax errors."""
+          print("Executing the Pygame game file...")
+
+          # Attempt to import the Game object.
+          from game import Game
+
+          game = Game()
+          exit_code = game.run()
+          assert exit_code == 0, f"Game execution failed with return code {exit_code}"
+
+          return True
+
+references: []
+
+configs:
+  - name: "genre"
+    description: "The kind of game to create"
+    value: "simple flappy bird clone"
+  - name: "game description and synopsis"
+    description: "The description and synopsis of the game"
+    value: |
+      A simple flappy bird game clone where the user hits the spacebar to 'flap' the bird up
+      and letting gravity pull the burd down.  The bird needs to dodge through increasingly small
+      passages which scroll at the bird at increasing speed.  If the bird doesn't make it through
+      the passage (collides with the wall or obstacle) the game is over, if the bird passes through
+      then the player gets a point
+  - name: "auto exit time"
+    description: "The amount of time in seconds to run the game before auto exit so tests do not hange"
+    value: 10
+# !Pygame Game 2d

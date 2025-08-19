@@ -1,0 +1,215 @@
+# GitHub Version Control Service
+name: "github"
+category: "Version Control Service"
+description: |
+  Create a connector that uses the GitHub API to manage repositories, issues, and pull requests. 
+  The connector must save the GitHub personal access token and provide functionality
+  to create, update, and retrieve repositories, issues, and pull requests.
+
+specs:
+  - description: "Connector stores GitHub personal access token"
+    preconditions: "The system state has not yet been configured for GitHub."
+    postconditions: "The connector successfully saves the GitHub personal access token to state."
+
+  - description: "Connector creates a new issue in a GitHub repository"
+    preconditions: "GitHub is configured with valid credentials and a repository exists."
+    postconditions: "The connector creates a new issue in the GitHub repository."
+
+  - description: "Connector retrieves issues from a GitHub repository"
+    preconditions: "GitHub is configured and issues exist in the repository."
+    postconditions: "The connector retrieves and displays a list of issues from the repository."
+
+  - description: "Connector updates an existing issue in GitHub"
+    preconditions: "GitHub is configured and a specific issue exists to be updated."
+    postconditions: "The connector updates the specified issue with new information."
+
+  - description: "Connector executes without additional user intervention"
+    preconditions: "All necessary packages are pre-installed."
+    postconditions: "The connector code runs and executes correctly (e.g. passes a health check)."
+
+tests:
+  - description: "Create GitHub Issue"
+    preconditions: "GitHub configuration is stored in state."
+    postconditions: "Connector creates a new issue in a GitHub repository."
+    function_to_run: !python/function |
+      def test_create_github_issue(zerg_state=None):
+        """Test that the GitHub connector creates a new issue."""
+        print("Creating new issue using GitHub API")
+        
+        assert zerg_state, "this test requires valid zerg_state"
+
+        # Ensure required keys exist; use dict.get() for safe retrieval.
+        github_token = zerg_state.get("github_token").get("value")
+
+        # Basic assertions to verify all necessary fields are present.
+        assert github_token, "Missing github_token in agent state"
+
+        # Attempt to import the GitHubConnector object.
+        from connector import GitHubConnector
+
+        connector = GitHubConnector(
+            github_token=github_token
+        )
+
+        # Get the first available repository
+        repositories = connector.get_repositories()
+        assert repositories and len(repositories) > 0, "No repositories found in GitHub account"
+        repo_full_name = repositories[0]["full_name"]
+
+        issue_data = {
+            "title": "Test Issue",
+            "body": "This is a test issue created by the connector.",
+            "labels": ["test", "connector"]
+        }
+
+        issue_number = connector.create_issue(
+            repo_full_name=repo_full_name,
+            issue_data=issue_data
+        )
+
+        assert issue_number, "Issue was not created successfully"
+
+        return True
+
+  - description: "Retrieve GitHub Issues"
+    preconditions: "GitHub is configured and issues exist in the repository."
+    postconditions: "The connector retrieves a list of issues from the repository."
+    function_to_run: !python/function |
+      def test_retrieve_github_issues(zerg_state=None):
+          """Test that the GitHub connector retrieves issues from a repository."""
+          print("Retrieving issues from GitHub repository")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          github_token = zerg_state.get("github_token").get("value")
+
+          assert github_token, "Missing github_token in agent state"
+
+          from connector import GitHubConnector
+
+          connector = GitHubConnector(
+            github_token=github_token
+          )  
+
+          # Get the first available repository
+          repositories = connector.get_repositories()
+          assert repositories and len(repositories) > 0, "No repositories found in GitHub account"
+          repo_full_name = repositories[0]["full_name"]
+          
+          # Get open issues from the repository
+          issues = connector.get_issues(
+              repo_full_name=repo_full_name,
+              state="open",
+              per_page=10
+          )
+
+          assert issues and len(issues) > 0, "No open issues retrieved from repository"
+
+          return True
+
+  - description: "Update GitHub Issue"
+    preconditions: "GitHub is configured and a specific issue exists to be updated."
+    postconditions: "The connector updates the specified issue with new information."
+    function_to_run: !python/function |
+      def test_update_github_issue(zerg_state=None):
+          """Test that the GitHub connector updates an existing issue."""
+          print("Updating existing GitHub issue")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          github_token = zerg_state.get("github_token").get("value")
+
+          assert github_token, "Missing github_token in agent state"
+
+          from connector import GitHubConnector
+
+          connector = GitHubConnector(
+            github_token=github_token
+          )  
+
+          # Get the first available repository
+          repositories = connector.get_repositories()
+          assert repositories and len(repositories) > 0, "No repositories found in GitHub account"
+          repo_full_name = repositories[0]["full_name"]
+          
+          # Get the first open issue from that repository
+          issues = connector.get_issues(repo_full_name=repo_full_name, state="open", per_page=1)
+          assert issues and len(issues) > 0, "No open issues found in repository"
+          issue_number = issues[0]["number"]
+
+          update_data = {
+              "title": "Updated Test Issue",
+              "body": "This issue has been updated by the connector.",
+              "state": "open",
+              "labels": ["test", "updated", "connector"]
+          }
+
+          result = connector.update_issue(
+              repo_full_name=repo_full_name,
+              issue_number=issue_number,
+              update_data=update_data
+          )
+
+          assert result is True, "Issue was not updated successfully"
+
+          return True
+
+  - description: "Create GitHub Pull Request"
+    preconditions: "GitHub is configured and a repository with at least two branches exists."
+    postconditions: "The connector creates a new pull request in the GitHub repository."
+    function_to_run: !python/function |
+      def test_create_github_pull_request(zerg_state=None):
+          """Test that the GitHub connector creates a new pull request."""
+          print("Creating new pull request using GitHub API")
+          
+          assert zerg_state, "this test requires valid zerg_state"
+
+          # Ensure required keys exist; use dict.get() for safe retrieval.
+          github_token = zerg_state.get("github_token").get("value")
+
+          # Basic assertions to verify all necessary fields are present.
+          assert github_token, "Missing github_token in agent state"
+
+          # Attempt to import the GitHubConnector object.
+          from connector import GitHubConnector
+
+          connector = GitHubConnector(
+              github_token=github_token
+          )
+
+          # Get the first available repository
+          repositories = connector.get_repositories()
+          assert repositories and len(repositories) > 0, "No repositories found in GitHub account"
+          repo_full_name = repositories[0]["full_name"]
+          
+          # Get the available branches
+          branches = connector.get_branches(repo_full_name=repo_full_name)
+          assert branches and len(branches) >= 2, "Repository needs at least two branches"
+          
+          # Use the first branch as base and second as head
+          base_branch = branches[0]["name"]
+          head_branch = branches[1]["name"]
+
+          pr_data = {
+              "title": "Test Pull Request",
+              "body": "This is a test pull request created by the connector.",
+              "head": head_branch,
+              "base": base_branch
+          }
+
+          pr_number = connector.create_pull_request(
+              repo_full_name=repo_full_name,
+              pr_data=pr_data
+          )
+
+          assert pr_number, "Pull request was not created successfully"
+
+          return True
+
+references: []
+
+configs:
+  - name: "github_token"
+    description: "GitHub personal access token for authentication"
+    value: !env/var
+# !# GitHub Version Control Service

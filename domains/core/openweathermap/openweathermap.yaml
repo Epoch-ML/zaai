@@ -1,0 +1,87 @@
+# OpenWeatherMap Documentation Navigator
+name: "openweathermap"
+category: "API Documentation / Web Scraping"
+description: |
+  Create a connector that uses the workspace to load and understand the OpenWeatherMap API 
+  documentation by scraping and navigating the web. The connector should extract API endpoints 
+  and answer queries about required parameters
+
+specs:
+  - description: "Connector is able to load the OpenWeatherMap API documentation page"
+    preconditions: "No strict preconditions"
+    postconditions: "Connector retrieves the HTML content of the OpenWeatherMap API documentation page"
+  - description: "Connector parses the API endpoints from the documentation"
+    preconditions: "The documentation page is loaded"
+    postconditions: "Connector extracts a list of API endpoints along with their descriptions"
+  - description: "Connector answers queries about required parameters for a specific endpoint"
+    preconditions: "API documentation is successfully parsed"
+    postconditions: "Connector returns correct required parameters for a given endpoint (e.g., 'Current Weather Data')"
+
+tests:
+  - description: "Load OpenWeatherMap API Documentation"
+    preconditions: "Internet access is available"
+    postconditions: "Connector successfully retrieves HTML content from the OpenWeatherMap API docs page"
+    function_to_run: !python/function |
+      def test_load_doc(zerg_state=None):
+          """Test that the connector can load the OpenWeatherMap API documentation page."""
+          print("Loading OpenWeatherMap API documentation")
+
+          # Attempt to import the OpenWeatherMapConnector object.
+          from main import OpenWeatherMapConnector
+
+          connector = OpenWeatherMapConnector()
+          content = connector.load_documentation()
+          assert isinstance(content, str) and len(content) > 100, "Documentation content is too short or invalid"
+
+          return True
+
+  - description: "Parse API Endpoints from Documentation"
+    preconditions: "Documentation content is loaded"
+    postconditions: "Connector extracts a non-empty list of API endpoints with descriptions"
+    function_to_run: !python/function |
+      def test_parse_endpoints(zerg_state=None):
+          """Test parsing of API endpoints from the documentation."""
+          print("Parsing API endpoints from documentation")
+
+          # Attempt to import the OpenWeatherMapConnector object.
+          from main import OpenWeatherMapConnector
+
+          connector = OpenWeatherMapConnector()
+          
+          endpoints = connector.parse_endpoints()
+
+          assert isinstance(endpoints, list), "Parsed endpoints should be a list"
+          assert len(endpoints) > 0, "No endpoints were parsed"
+          for ep in endpoints:
+              assert "endpoint" in ep and "description" in ep, "Each endpoint should include 'endpoint' and 'description'"
+
+          return True
+
+  - description: "Answer Query about Endpoint Parameters"
+    preconditions: "API endpoints are parsed"
+    postconditions: "Connector correctly returns required parameters for a specified endpoint"
+    function_to_run: !python/function |
+      def test_endpoint_parameters(zerg_state=None):
+          """Test that the connector can answer queries about required parameters for an API endpoint."""
+          print("Querying required parameters for 'Current Weather Data' endpoint")
+
+          # Attempt to import the OpenWeatherMapConnector object.
+          from main import OpenWeatherMapConnector
+
+          connector = OpenWeatherMapConnector()
+          params = connector.get_required_parameters(endpoint="Current Weather Data")
+          assert isinstance(params, list), "Parameters should be returned as a list"
+
+          # Expect 'appid' to be a required parameter for OpenWeatherMap API endpoints
+          assert "appid" in params, "Required parameter 'appid' not found in endpoint parameters"
+
+          return True
+
+references: []
+
+configs:
+  - name: "documentation_url"
+    description: "The URL of the OpenWeatherMap API documentation page"
+    value: "https://openweathermap.org/api"
+  
+# !OpenWeatherMap Documentation Navigator

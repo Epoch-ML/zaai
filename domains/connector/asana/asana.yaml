@@ -1,0 +1,173 @@
+# Asana Task Management Service
+name: "asana"
+category: "Task Management Service"
+description: |
+  Create a connector that uses the Asana API to manage tasks and projects. 
+  The connector must save the Asana personal access token and provide functionality
+  to create, update, and retrieve tasks and projects.
+
+specs:
+  - description: "Connector stores Asana personal access token"
+    preconditions: "The system state has not yet been configured for Asana."
+    postconditions: "The connector successfully saves the Asana personal access token to state."
+
+  - description: "Connector creates a new task in Asana"
+    preconditions: "Asana is configured with valid credentials and a workspace exists."
+    postconditions: "The connector creates a new task in the specified Asana workspace."
+
+  - description: "Connector retrieves tasks from an Asana workspace"
+    preconditions: "Asana is configured and tasks exist in the workspace."
+    postconditions: "The connector retrieves and displays a list of tasks from the workspace."
+
+  - description: "Connector updates an existing task in Asana"
+    preconditions: "Asana is configured and a specific task exists to be updated."
+    postconditions: "The connector updates the specified task with new information."
+
+  - description: "Connector executes without additional user intervention"
+    preconditions: "All necessary packages are pre-installed."
+    postconditions: "The connector code runs and executes correctly (e.g. passes a health check)."
+
+tests:
+  - description: "Create Asana Task"
+    preconditions: "Asana configuration is stored in state."
+    postconditions: "Connector creates a new task in the Asana workspace."
+    function_to_run: !python/function |
+      def test_create_asana_task(zerg_state=None):
+        """Test that the Asana connector creates a new task."""
+        print("Creating new task using Asana API")
+        
+        assert zerg_state, "this test requires valid zerg_state"
+
+        # Ensure required keys exist; use dict.get() for safe retrieval.
+        asana_token = zerg_state.get("asana_token").get("value")
+
+        # Basic assertions to verify all necessary fields are present.
+        assert asana_token, "Missing asana_token in agent state"
+
+        # Attempt to import the AsanaConnector object.
+        from connector import AsanaConnector
+
+        connector = AsanaConnector(
+            asana_token=asana_token
+        )
+
+        # Get the first available workspace
+        workspaces = connector.get_workspaces()
+        assert workspaces and len(workspaces) > 0, "No workspaces found in Asana account"
+        workspace_gid = workspaces[0]["gid"]
+        
+        # Get the first available project
+        projects = connector.get_projects(workspace_gid=workspace_gid)
+        assert projects and len(projects) > 0, "No projects found in workspace"
+        project_gid = projects[0]["gid"]
+
+        task_data = {
+            "name": "Test Task",
+            "notes": "This is a test task created by the connector.",
+            "due_on": None
+        }
+
+        task_gid = connector.create_task(
+            project_gid=project_gid,
+            task_data=task_data
+        )
+
+        assert task_gid, "Task was not created successfully"
+
+        return True
+
+  - description: "Retrieve Asana Tasks"
+    preconditions: "Asana is configured and tasks exist in the workspace."
+    postconditions: "The connector retrieves a list of tasks from the workspace."
+    function_to_run: !python/function |
+      def test_retrieve_asana_tasks(zerg_state=None):
+          """Test that the Asana connector retrieves tasks from a workspace."""
+          print("Retrieving tasks from Asana workspace")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          asana_token = zerg_state.get("asana_token").get("value")
+
+          assert asana_token, "Missing asana_token in agent state"
+
+          from connector import AsanaConnector
+
+          connector = AsanaConnector(
+            asana_token=asana_token
+          )  
+
+          # Get the first available workspace
+          workspaces = connector.get_workspaces()
+          assert workspaces and len(workspaces) > 0, "No workspaces found in Asana account"
+          workspace_gid = workspaces[0]["gid"]
+          
+          # Get the first available project
+          projects = connector.get_projects(workspace_gid=workspace_gid)
+          assert projects and len(projects) > 0, "No projects found in workspace"
+          project_gid = projects[0]["gid"]
+          
+          tasks = connector.get_tasks(
+              project_gid=project_gid,
+              limit=10
+          )
+
+          assert tasks and len(tasks) > 0, "No tasks retrieved from project"
+
+          return True
+
+  - description: "Update Asana Task"
+    preconditions: "Asana is configured and a specific task exists to be updated."
+    postconditions: "The connector updates the specified task with new information."
+    function_to_run: !python/function |
+      def test_update_asana_task(zerg_state=None):
+          """Test that the Asana connector updates an existing task."""
+          print("Updating existing Asana task")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          asana_token = zerg_state.get("asana_token").get("value")
+
+          assert asana_token, "Missing asana_token in agent state"
+
+          from connector import AsanaConnector
+
+          connector = AsanaConnector(
+            asana_token=asana_token
+          )  
+
+          # Get the first available workspace
+          workspaces = connector.get_workspaces()
+          assert workspaces and len(workspaces) > 0, "No workspaces found in Asana account"
+          workspace_gid = workspaces[0]["gid"]
+          
+          # Get the first available project
+          projects = connector.get_projects(workspace_gid=workspace_gid)
+          assert projects and len(projects) > 0, "No projects found in workspace"
+          project_gid = projects[0]["gid"]
+          
+          # Get the first task from that project
+          tasks = connector.get_tasks(project_gid=project_gid, limit=1)
+          assert tasks and len(tasks) > 0, "No tasks found in project"
+          task_gid = tasks[0]["gid"]
+
+          update_data = {
+              "name": "Updated Test Task",
+              "notes": "This task has been updated by the connector."
+          }
+
+          result = connector.update_task(
+              task_gid=task_gid,
+              update_data=update_data
+          )
+
+          assert result is True, "Task was not updated successfully"
+
+          return True
+
+references: []
+
+configs:
+  - name: "asana_token"
+    description: "Asana personal access token for authentication"
+    value: !env/var
+# !# Asana Task Management Service

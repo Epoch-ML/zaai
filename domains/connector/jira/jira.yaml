@@ -1,0 +1,182 @@
+# Jira Task Management Service
+name: "jira"
+category: "Task Management Service"
+description: |
+  Create a connector that uses the Jira API to manage tasks and issues. 
+  The connector must save the Jira API token, domain URL, and user email, and provide functionality
+  to create, update, and retrieve issues.
+
+specs:
+  - description: "Connector stores Jira API token, domain URL, and user email"
+    preconditions: "The system state has not yet been configured for Jira."
+    postconditions: "The connector successfully saves the Jira API token, domain URL, and user email to state."
+
+  - description: "Connector creates a new issue in Jira"
+    preconditions: "Jira is configured with valid credentials and project exists."
+    postconditions: "The connector creates a new issue in the specified Jira project."
+
+  - description: "Connector retrieves issues from a Jira project"
+    preconditions: "Jira is configured and issues exist in the project."
+    postconditions: "The connector retrieves and displays a list of issues from the specified project."
+
+  - description: "Connector updates an existing issue in Jira"
+    preconditions: "Jira is configured and a specific issue exists to be updated."
+    postconditions: "The connector updates the specified issue with new information."
+
+  - description: "Connector executes without additional user intervention"
+    preconditions: "All necessary packages are pre-installed."
+    postconditions: "The connector code runs and executes correctly (e.g. passes a health check)."
+
+tests:
+  - description: "Create Jira Issue"
+    preconditions: "Jira configuration is stored in state."
+    postconditions: "Connector creates a new issue in the specified Jira project."
+    function_to_run: !python/function |
+      def test_create_jira_issue(zerg_state=None):
+        """Test that the Jira connector creates a new issue."""
+        print("Creating new issue using Jira API")
+        
+        assert zerg_state, "this test requires valid zerg_state"
+
+        # Ensure required keys exist; use dict.get() for safe retrieval.
+        jira_api_token = zerg_state.get("jira_api_token").get("value")
+        jira_domain = zerg_state.get("jira_domain").get("value")
+        jira_email = zerg_state.get("jira_email").get("value")
+
+        # Basic assertions to verify all necessary fields are present.
+        assert jira_api_token, "Missing jira_api_token in agent state"
+        assert jira_domain, "Missing jira_domain in agent state"
+        assert jira_email, "Missing jira_email in agent state"
+
+        # Attempt to import the JiraConnector object.
+        from connector import JiraConnector
+
+        connector = JiraConnector(
+            jira_api_token=jira_api_token,
+            jira_domain=jira_domain,
+            jira_email=jira_email
+        )
+
+        # Get the first available project
+        projects = connector.get_projects()
+        assert projects and len(projects) > 0, "No projects found in Jira instance"
+        project_key = projects[0]["key"]
+
+        issue_data = {
+            "summary": "Test Issue",
+            "description": "This is a test issue created by the connector.",
+            "issue_type": "Task"
+        }
+
+        issue_key = connector.create_issue(
+            project_key=project_key,
+            issue_data=issue_data
+        )
+
+        assert issue_key, "Issue was not created successfully"
+
+        return True
+
+  - description: "Retrieve Jira Issues"
+    preconditions: "Jira is configured and issues exist in the project."
+    postconditions: "The connector retrieves a list of issues from the specified project."
+    function_to_run: !python/function |
+      def test_retrieve_jira_issues(zerg_state=None):
+          """Test that the Jira connector retrieves issues from a project."""
+          print("Retrieving issues from Jira project")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          jira_api_token = zerg_state.get("jira_api_token").get("value")
+          jira_domain = zerg_state.get("jira_domain").get("value")
+          jira_email = zerg_state.get("jira_email").get("value")
+
+          assert jira_api_token, "Missing jira_api_token in agent state"
+          assert jira_domain, "Missing jira_domain in agent state"
+          assert jira_email, "Missing jira_email in agent state"
+
+          from connector import JiraConnector
+
+          connector = JiraConnector(
+            jira_api_token=jira_api_token,
+            jira_domain=jira_domain,
+            jira_email=jira_email
+          )  
+
+          # Get the first available project
+          projects = connector.get_projects()
+          assert projects and len(projects) > 0, "No projects found in Jira instance"
+          project_key = projects[0]["key"]
+          
+          issues = connector.get_issues(
+              project_key=project_key,
+              max_results=10
+          )
+
+          assert issues and len(issues) > 0, "No issues retrieved from project"
+
+          return True
+
+  - description: "Update Jira Issue"
+    preconditions: "Jira is configured and a specific issue exists to be updated."
+    postconditions: "The connector updates the specified issue with new information."
+    function_to_run: !python/function |
+      def test_update_jira_issue(zerg_state=None):
+          """Test that the Jira connector updates an existing issue."""
+          print("Updating existing Jira issue")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          jira_api_token = zerg_state.get("jira_api_token").get("value")
+          jira_domain = zerg_state.get("jira_domain").get("value")
+          jira_email = zerg_state.get("jira_email").get("value")
+
+          assert jira_api_token, "Missing jira_api_token in agent state"
+          assert jira_domain, "Missing jira_domain in agent state"
+          assert jira_email, "Missing jira_email in agent state"
+
+          from connector import JiraConnector
+
+          connector = JiraConnector(
+            jira_api_token=jira_api_token,
+            jira_domain=jira_domain,
+            jira_email=jira_email
+          )  
+
+          update_data = {
+              "summary": "Updated Test Issue",
+              "description": "This issue has been updated by the connector."
+          }
+
+          # Get the first available project
+          projects = connector.get_projects()
+          assert projects and len(projects) > 0, "No projects found in Jira instance"
+          project_key = projects[0]["key"]
+          
+          # Get the first issue from that project
+          issues = connector.get_issues(project_key=project_key, max_results=1)
+          assert issues and len(issues) > 0, "No issues found in project"
+          issue_key = issues[0]["key"]
+          
+          result = connector.update_issue(
+              issue_key=issue_key,
+              update_data=update_data
+          )
+
+          assert result is True, "Issue was not updated successfully"
+
+          return True
+
+references: []
+
+configs:
+  - name: "jira_api_token"
+    description: "Jira API token to be used for authentication"
+    value: !env/var 
+  - name: "jira_domain"
+    description: "Jira domain URL (e.g. 'company.atlassian.net')"
+    value: !env/var
+  - name: "jira_email"
+    description: "Email address associated with the Jira account"
+    value: !env/var
+# !# Jira Task Management Service

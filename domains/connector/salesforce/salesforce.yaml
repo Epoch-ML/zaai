@@ -1,0 +1,206 @@
+# Salesforce CRM Service
+name: "salesforce"
+category: "CRM Service"
+description: |
+  Create a connector that uses the Salesforce API to manage contacts, accounts, and opportunities. 
+  The connector must save the Salesforce username, password, security token, and consumer key/secret, 
+  and provide functionality to create, update, and retrieve records.
+
+specs:
+  - description: "Connector stores Salesforce authentication credentials"
+    preconditions: "The system state has not yet been configured for Salesforce."
+    postconditions: "The connector successfully saves the Salesforce credentials to state."
+
+  - description: "Connector creates a new contact in Salesforce"
+    preconditions: "Salesforce is configured with valid credentials."
+    postconditions: "The connector creates a new contact in Salesforce."
+
+  - description: "Connector retrieves accounts from Salesforce"
+    preconditions: "Salesforce is configured and accounts exist in the organization."
+    postconditions: "The connector retrieves and displays a list of accounts from Salesforce."
+
+  - description: "Connector updates an existing opportunity in Salesforce"
+    preconditions: "Salesforce is configured and a specific opportunity exists to be updated."
+    postconditions: "The connector updates the specified opportunity with new information."
+
+  - description: "Connector executes without additional user intervention"
+    preconditions: "All necessary packages are pre-installed."
+    postconditions: "The connector code runs and executes correctly (e.g. passes a health check)."
+
+tests:
+  - description: "Create Salesforce Contact"
+    preconditions: "Salesforce configuration is stored in state."
+    postconditions: "Connector creates a new contact in Salesforce."
+    function_to_run: !python/function |
+      def test_create_salesforce_contact(zerg_state=None):
+        """Test that the Salesforce connector creates a new contact."""
+        print("Creating new contact using Salesforce API")
+        
+        assert zerg_state, "this test requires valid zerg_state"
+
+        # Ensure required keys exist; use dict.get() for safe retrieval.
+        sf_username = zerg_state.get("sf_username").get("value")
+        sf_password = zerg_state.get("sf_password").get("value")
+        sf_security_token = zerg_state.get("sf_security_token").get("value")
+        sf_consumer_key = zerg_state.get("sf_consumer_key").get("value")
+        sf_consumer_secret = zerg_state.get("sf_consumer_secret").get("value")
+
+        # Basic assertions to verify all necessary fields are present.
+        assert sf_username, "Missing sf_username in agent state"
+        assert sf_password, "Missing sf_password in agent state"
+        assert sf_security_token, "Missing sf_security_token in agent state"
+        assert sf_consumer_key, "Missing sf_consumer_key in agent state"
+        assert sf_consumer_secret, "Missing sf_consumer_secret in agent state"
+
+        # Attempt to import the SalesforceConnector object.
+        from connector import SalesforceConnector
+
+        connector = SalesforceConnector(
+            sf_username=sf_username,
+            sf_password=sf_password,
+            sf_security_token=sf_security_token,
+            sf_consumer_key=sf_consumer_key,
+            sf_consumer_secret=sf_consumer_secret
+        )
+
+        # Get a random account to associate the contact with
+        accounts = connector.query_records("SELECT Id FROM Account LIMIT 1")
+        assert accounts and len(accounts) > 0, "No accounts found in Salesforce"
+        account_id = accounts[0]["Id"]
+
+        contact_data = {
+            "LastName": "Test Contact",
+            "FirstName": "API",
+            "Email": "test@example.com",
+            "Phone": "555-1234",
+            "AccountId": account_id
+        }
+
+        contact_id = connector.create_record(
+            object_name="Contact",
+            record_data=contact_data
+        )
+
+        assert contact_id, "Contact was not created successfully"
+
+        return True
+
+  - description: "Retrieve Salesforce Accounts"
+    preconditions: "Salesforce is configured and accounts exist in the organization."
+    postconditions: "The connector retrieves a list of accounts from Salesforce."
+    function_to_run: !python/function |
+      def test_retrieve_salesforce_accounts(zerg_state=None):
+          """Test that the Salesforce connector retrieves accounts."""
+          print("Retrieving accounts from Salesforce")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          sf_username = zerg_state.get("sf_username").get("value")
+          sf_password = zerg_state.get("sf_password").get("value")
+          sf_security_token = zerg_state.get("sf_security_token").get("value")
+          sf_consumer_key = zerg_state.get("sf_consumer_key").get("value")
+          sf_consumer_secret = zerg_state.get("sf_consumer_secret").get("value")
+
+          assert sf_username, "Missing sf_username in agent state"
+          assert sf_password, "Missing sf_password in agent state"
+          assert sf_security_token, "Missing sf_security_token in agent state"
+          assert sf_consumer_key, "Missing sf_consumer_key in agent state"
+          assert sf_consumer_secret, "Missing sf_consumer_secret in agent state"
+
+          from connector import SalesforceConnector
+
+          connector = SalesforceConnector(
+              sf_username=sf_username,
+              sf_password=sf_password,
+              sf_security_token=sf_security_token,
+              sf_consumer_key=sf_consumer_key,
+              sf_consumer_secret=sf_consumer_secret
+          )  
+
+          # Query accounts with key fields
+          accounts = connector.query_records(
+              "SELECT Id, Name, Type, Industry, Phone FROM Account LIMIT 10"
+          )
+
+          assert accounts and len(accounts) > 0, "No accounts retrieved from Salesforce"
+
+          return True
+
+  - description: "Update Salesforce Opportunity"
+    preconditions: "Salesforce is configured and a specific opportunity exists to be updated."
+    postconditions: "The connector updates the specified opportunity with new information."
+    function_to_run: !python/function |
+      def test_update_salesforce_opportunity(zerg_state=None):
+          """Test that the Salesforce connector updates an existing opportunity."""
+          print("Updating existing Salesforce opportunity")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          sf_username = zerg_state.get("sf_username").get("value")
+          sf_password = zerg_state.get("sf_password").get("value")
+          sf_security_token = zerg_state.get("sf_security_token").get("value")
+          sf_consumer_key = zerg_state.get("sf_consumer_key").get("value")
+          sf_consumer_secret = zerg_state.get("sf_consumer_secret").get("value")
+
+          assert sf_username, "Missing sf_username in agent state"
+          assert sf_password, "Missing sf_password in agent state"
+          assert sf_security_token, "Missing sf_security_token in agent state"
+          assert sf_consumer_key, "Missing sf_consumer_key in agent state"
+          assert sf_consumer_secret, "Missing sf_consumer_secret in agent state"
+
+          from connector import SalesforceConnector
+
+          connector = SalesforceConnector(
+              sf_username=sf_username,
+              sf_password=sf_password,
+              sf_security_token=sf_security_token,
+              sf_consumer_key=sf_consumer_key,
+              sf_consumer_secret=sf_consumer_secret
+          )  
+
+          # Find an existing opportunity
+          opportunities = connector.query_records("SELECT Id FROM Opportunity LIMIT 1")
+          assert opportunities and len(opportunities) > 0, "No opportunities found in Salesforce"
+          opportunity_id = opportunities[0]["Id"]
+
+          import datetime
+          
+          # Calculate a date 30 days in the future
+          close_date = (datetime.datetime.now() + datetime.timedelta(days=30)).strftime('%Y-%m-%d')
+          
+          update_data = {
+              "Name": "Updated Test Opportunity",
+              "StageName": "Qualification",
+              "CloseDate": close_date,
+              "Amount": 15000.00
+          }
+
+          result = connector.update_record(
+              object_name="Opportunity",
+              record_id=opportunity_id,
+              record_data=update_data
+          )
+
+          assert result is True, "Opportunity was not updated successfully"
+
+          return True
+
+references: []
+
+configs:
+  - name: "sf_username"
+    description: "Salesforce username for authentication"
+    value: !env/var
+  - name: "sf_password"
+    description: "Salesforce password for authentication"
+    value: !env/var
+  - name: "sf_security_token" 
+    description: "Salesforce security token for authentication"
+    value: !env/var
+  - name: "sf_consumer_key"
+    description: "Salesforce consumer key (client id) for OAuth authentication"
+    value: !env/var
+  - name: "sf_consumer_secret"
+    description: "Salesforce consumer secret (client secret) for OAuth authentication"
+    value: !env/var
+# !# Salesforce CRM Service

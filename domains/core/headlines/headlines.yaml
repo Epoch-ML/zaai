@@ -1,0 +1,87 @@
+# Google Headlines
+name: "headlines"
+category: "News"
+description: "Create an API integration to retrieve the top headlines from Google News. The connector should be able to fetch the single top headline and then the top 10 headlines without using an API key."
+
+specs:
+  - description: "Connector retrieves the top headline from Google News"
+    preconditions: "A valid endpoint configuration."
+    postconditions: "The connector successfully retrieves a non-empty top headline."
+  - description: "Connector retrieves the top 10 headlines from Google News"
+    preconditions: "A valid endpoint configuration for the news service."
+    postconditions: "The connector successfully retrieves exactly 10 headlines as a list."
+  - description: "Connector handles API errors and network timeouts"
+    preconditions: "Simulated network failure or invalid configuration."
+    postconditions: "The connector logs errors and retries the request if necessary."
+
+tests:
+  - description: "Retrieve Top Headline"
+    preconditions: "A valid endpoint configuration."
+    postconditions: "Connector returns a valid headline as a string."
+    function_to_run: !python/function |
+      def test_get_top_headline(zerg_state=None):
+          """Test retrieving the top headline from Google News."""
+          print("Retrieving top headline from Google News")
+          
+          # Instantiate the connector (adjust instantiation as required)
+
+          from headlines import GoogleHeadlinesConnector
+          connector = GoogleHeadlinesConnector()
+          headline = connector.get_top_headline()
+          assert isinstance(headline, str), "Top headline is not a string"
+          assert len(headline) > 0, "No headline retrieved"
+
+          return True
+
+  - description: "Retrieve Top 10 Headlines"
+    preconditions: "A valid endpoint configuration."
+    postconditions: "Connector returns a list of 10 headlines."
+    function_to_run: !python/function |
+      def test_get_top_10_headlines(zerg_state=None):
+          """Test retrieving the top 10 headlines from Google News."""
+          print("Retrieving top 10 headlines from Google News")
+
+          # Attempt to import the GoogleHeadlinesConnector object.
+          from headlines import GoogleHeadlinesConnector
+  
+          connector = GoogleHeadlinesConnector()
+          headlines = connector.get_top_headlines(count=10)
+          assert isinstance(headlines, list), "Headlines response is not a list"
+          assert len(headlines) == 10, "Did not retrieve exactly 10 headlines"
+
+          for headline in headlines:
+              assert isinstance(headline, str) and len(headline) > 0, "Invalid headline in list"
+
+          return True
+
+  - description: "Handle API Errors and Network Timeouts"
+    preconditions: "Simulated network error or invalid configuration."
+    postconditions: "Connector gracefully handles errors and logs appropriate messages."
+    function_to_run: !python/function |
+      def test_handle_api_errors(zerg_state=None):
+          """Test error handling for API errors in the Google Headlines connector."""
+          print("Testing error handling for Google Headlines connector")
+
+          # Attempt to import the GoogleHeadlinesConnector object.
+          from headlines import GoogleHeadlinesConnector
+
+          connector = GoogleHeadlinesConnector()
+
+          # Simulate an error by setting an unrealistic timeout
+          original_timeout = connector.config.get('timeout', 10)
+          connector.config['timeout'] = 0.001
+          response = connector.get_top_headline()
+              
+          # Expect a failure response or an exception
+          assert response is None or "error" in str(response).lower(), "Error handling did not trigger"
+
+          connector.config['timeout'] = original_timeout
+
+          return True
+
+references: []
+configs:
+  - name: "country"
+    description: "Country code for filtering headlines (e.g., 'us')"
+    value: "us"
+# !Google Headlines

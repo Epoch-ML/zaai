@@ -1,0 +1,704 @@
+# Django Todo Application
+name: "django"
+category: "Web Application"
+description: |
+  Create a Django-based Todo application that allows users to create, read, update, and delete tasks.
+  The application should have a clean user interface, store tasks in a simple JSON file,
+  and provide functionality for marking tasks as complete. The app should not require any external
+  dependencies beyond Django and the Python standard library.
+
+specs:
+  - description: "Application creates a JSON file for storing tasks"
+    preconditions: "The application is freshly installed with no existing task file."
+    postconditions: "The application successfully creates a JSON file to store tasks."
+
+  - description: "User can add a new task through the web interface"
+    preconditions: "The application is running and accessible via a web browser."
+    postconditions: "A new task is added to the JSON file and displayed in the task list."
+
+  - description: "User can view all tasks in the web interface"
+    preconditions: "The application is running and tasks exist in the JSON file."
+    postconditions: "All tasks are displayed in the web interface."
+
+  - description: "User can mark a task as complete through the web interface"
+    preconditions: "The application is running and at least one incomplete task exists."
+    postconditions: "The task is marked as complete in the JSON file and visually indicated in the UI."
+
+  - description: "User can delete a task through the web interface"
+    preconditions: "The application is running and at least one task exists."
+    postconditions: "The selected task is removed from the JSON file and no longer displayed."
+
+tests:
+  - description: "Initialize Project Structure"
+    preconditions: "The application code is available."
+    postconditions: "Django project and app are correctly set up."
+    function_to_run: !python/function |
+      def test_project_structure(zerg_state=None):
+        """Test that the Django Todo app has the correct project structure."""
+        print("Testing Django project structure")
+        
+        import os
+        import sys
+        import time
+        import signal
+        from functools import wraps
+        
+        # Define a timeout handler
+        class TimeoutError(Exception):
+            pass
+            
+        def timeout(seconds=10):
+            def decorator(func):
+                @wraps(func)
+                def wrapper(*args, **kwargs):
+                    def handler(signum, frame):
+                        raise TimeoutError(f"Function timed out after {seconds} seconds")
+                    
+                    # Set the timeout handler
+                    original_handler = signal.getsignal(signal.SIGALRM)
+                    signal.signal(signal.SIGALRM, handler)
+                    signal.alarm(seconds)
+                    
+                    try:
+                        result = func(*args, **kwargs)
+                    finally:
+                        # Reset the alarm and restore original handler
+                        signal.alarm(0)
+                        signal.signal(signal.SIGALRM, original_handler)
+                    return result
+                return wrapper
+            return decorator
+        
+        # Project directory
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # Check for essential Django project files
+        essential_files = [
+            os.path.join(project_dir, "manage.py"),
+            os.path.join(project_dir, "todo_project", "settings.py"),
+            os.path.join(project_dir, "todo_project", "urls.py"),
+            os.path.join(project_dir, "todo_project", "wsgi.py"),
+            os.path.join(project_dir, "todo_app", "views.py"),
+            os.path.join(project_dir, "todo_app", "urls.py"),
+            os.path.join(project_dir, "todo_app", "storage.py"),
+            os.path.join(project_dir, "todo_app", "templates", "todo_app", "index.html"),
+        ]
+        
+        for file_path in essential_files:
+            assert os.path.exists(file_path), f"Essential file not found: {file_path}"
+        
+        return True
+
+  - description: "Initialize Task Storage"
+    preconditions: "The application code is available."
+    postconditions: "JSON file is initialized for storing tasks."
+    function_to_run: !python/function |
+      def test_initialize_storage(zerg_state=None):
+        """Test that the Django Todo app initializes the JSON storage correctly."""
+        print("Testing storage initialization")
+        
+        import os
+        import sys
+        import json
+        import importlib.util
+        import time
+        import signal
+        from functools import wraps
+        
+        # Define a timeout handler
+        class TimeoutError(Exception):
+            pass
+            
+        def timeout(seconds=10):
+            def decorator(func):
+                @wraps(func)
+                def wrapper(*args, **kwargs):
+                    def handler(signum, frame):
+                        raise TimeoutError(f"Function timed out after {seconds} seconds")
+                    
+                    # Set the timeout handler
+                    original_handler = signal.getsignal(signal.SIGALRM)
+                    signal.signal(signal.SIGALRM, handler)
+                    signal.alarm(seconds)
+                    
+                    try:
+                        result = func(*args, **kwargs)
+                    finally:
+                        # Reset the alarm and restore original handler
+                        signal.alarm(0)
+                        signal.signal(signal.SIGALRM, original_handler)
+                    return result
+                return wrapper
+            return decorator
+        
+        # Add the project directory to the path
+        project_dir = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, project_dir)
+        
+        # Import the storage module
+        spec = importlib.util.spec_from_file_location("storage", os.path.join(project_dir, "todo_app", "storage.py"))
+        storage_module = importlib.util.module_from_spec(spec)
+        
+        # Initialize the storage with timeout protection
+        @timeout(10)  # 10 second timeout
+        def initialize_storage():
+            spec.loader.exec_module(storage_module)
+            storage_module.init_storage()
+        
+        try:
+            initialize_storage()
+        except TimeoutError as e:
+            print(f"Error: {e}")
+            return False
+        
+        # Check if the JSON file exists
+        json_file = os.path.join(project_dir, "tasks.json")
+        assert os.path.exists(json_file), "Task JSON file was not created"
+        
+        # Check if the JSON file has the correct structure
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+            assert isinstance(data, list), "Tasks should be stored as a list"
+        
+        return True
+
+  - description: "Add Task"
+    preconditions: "The task storage is initialized."
+    postconditions: "A new task is added to the JSON file."
+    function_to_run: !python/function |
+      def test_add_task(zerg_state=None):
+          """Test that the Django Todo app can add a new task."""
+          print("Testing task addition")
+
+          import os
+          import sys
+          import json
+          import importlib.util
+          import time
+          import signal
+          from functools import wraps
+          from django.test import Client
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the project directory to the path
+          project_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, project_dir)
+          
+          # Set up Django environment
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "todo_project.settings")
+          import django
+          django.setup()
+          
+          # Count tasks before adding a new one
+          json_file = os.path.join(project_dir, "tasks.json")
+          if os.path.exists(json_file):
+              with open(json_file, 'r') as f:
+                  tasks_before = json.load(f)
+          else:
+              tasks_before = []
+          
+          # Wrap the client request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_add_request(client):
+              csrf_client = Client(enforce_csrf_checks=False)
+              response = csrf_client.post('/add/', {
+                  'title': 'Test Task',
+                  'description': 'This is a test task.'
+              }, follow=True)
+              return response
+          
+          try:
+              # Create a client
+              client = Client()
+              
+              # Add a task
+              response = make_add_request(client)
+              
+              # Check the response status code
+              assert response.status_code == 200, f"Failed to add task, status code: {response.status_code}"
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          
+          # Check if the task was added to the JSON file
+          with open(json_file, 'r') as f:
+              tasks_after = json.load(f)
+          
+          # Verify that a new task was added
+          assert len(tasks_after) > len(tasks_before), "No new task was added"
+          
+          # Find the task we just added
+          found_task = False
+          for task in tasks_after:
+              if task.get('title') == 'Test Task' and task.get('description') == 'This is a test task.':
+                  found_task = True
+                  assert task.get('completed') is False, "Task should not be marked as completed"
+                  break
+          
+          assert found_task, "Task was not added to the JSON file"
+          
+          return True
+
+  - description: "List Tasks"
+    preconditions: "The task storage contains at least one task."
+    postconditions: "All tasks are listed in the web interface."
+    function_to_run: !python/function |
+      def test_list_tasks(zerg_state=None):
+          """Test that the Django Todo app can list all tasks."""
+          print("Testing task listing")
+
+          import os
+          import sys
+          import json
+          import importlib.util
+          import time
+          import signal
+          import datetime
+          from functools import wraps
+          from django.test import Client
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the project directory to the path
+          project_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, project_dir)
+          
+          # Set up Django environment
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "todo_project.settings")
+          import django
+          django.setup()
+          
+          # First, make sure we have at least one task in the JSON file
+          json_file = os.path.join(project_dir, "tasks.json")
+          
+          if os.path.exists(json_file):
+              with open(json_file, 'r') as f:
+                  tasks = json.load(f)
+          else:
+              tasks = []
+          
+          if not tasks:
+              # Add a task if none exist
+              new_task = {
+                  'id': 1,
+                  'title': 'Test Task',
+                  'description': 'This is a test task.',
+                  'created_at': datetime.datetime.now().isoformat(),
+                  'completed': False
+              }
+              tasks.append(new_task)
+              with open(json_file, 'w') as f:
+                  json.dump(tasks, f)
+          
+          # Get all task titles for comparison
+          task_titles = [task['title'] for task in tasks]
+          
+          # Wrap the client request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_list_request(client):
+              response = client.get('/')
+              return response
+          
+          try:
+              # Create a client
+              client = Client()
+              
+              # Get the index page which should list all tasks
+              response = make_list_request(client)
+              
+              # Check the response status code
+              assert response.status_code == 200, f"Failed to get index page, status code: {response.status_code}"
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          
+          # Convert response content to string
+          response_content = response.content.decode('utf-8')
+          
+          # Check if the response contains all task titles
+          for task_title in task_titles:
+              assert task_title in response_content, f"Task '{task_title}' not found in the response"
+          
+          return True
+
+  - description: "Complete Task"
+    preconditions: "The task storage contains at least one incomplete task."
+    postconditions: "The task is marked as complete in the JSON file."
+    function_to_run: !python/function |
+      def test_complete_task(zerg_state=None):
+          """Test that the Django Todo app can mark a task as complete."""
+          print("Testing task completion")
+
+          import os
+          import sys
+          import json
+          import importlib.util
+          import time
+          import signal
+          import datetime
+          from functools import wraps
+          from django.test import Client
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the project directory to the path
+          project_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, project_dir)
+          
+          # Set up Django environment
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "todo_project.settings")
+          import django
+          django.setup()
+          
+          # First, make sure we have at least one incomplete task in the JSON file
+          json_file = os.path.join(project_dir, "tasks.json")
+          
+          if os.path.exists(json_file):
+              with open(json_file, 'r') as f:
+                  tasks = json.load(f)
+          else:
+              tasks = []
+          
+          # Find an incomplete task
+          incomplete_task_id = None
+          for task in tasks:
+              if not task.get('completed'):
+                  incomplete_task_id = task.get('id')
+                  break
+          
+          if incomplete_task_id is None:
+              # Add an incomplete task if none exist
+              new_task = {
+                  'id': len(tasks) + 1,
+                  'title': 'Incomplete Task',
+                  'description': 'This is an incomplete task.',
+                  'created_at': datetime.datetime.now().isoformat(),
+                  'completed': False
+              }
+              tasks.append(new_task)
+              incomplete_task_id = new_task['id']
+              with open(json_file, 'w') as f:
+                  json.dump(tasks, f)
+          
+          # Wrap the client request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_complete_request(client, task_id):
+              response = client.get(f'/complete/{task_id}/', follow=True)
+              return response
+          
+          try:
+              # Create a client
+              client = Client()
+              
+              # Mark the task as complete
+              response = make_complete_request(client, incomplete_task_id)
+              
+              # Check the response status code
+              assert response.status_code == 200, f"Failed to complete task, status code: {response.status_code}"
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          
+          # Check if the task was marked as complete in the JSON file
+          with open(json_file, 'r') as f:
+              updated_tasks = json.load(f)
+          
+          completed = False
+          for task in updated_tasks:
+              if task.get('id') == incomplete_task_id:
+                  completed = task.get('completed')
+                  break
+          
+          assert completed is True, "Task was not marked as completed in the JSON file"
+          
+          return True
+
+  - description: "Delete Task"
+    preconditions: "The task storage contains at least one task."
+    postconditions: "The task is deleted from the JSON file."
+    function_to_run: !python/function |
+      def test_delete_task(zerg_state=None):
+          """Test that the Django Todo app can delete a task."""
+          print("Testing task deletion")
+
+          import os
+          import sys
+          import json
+          import importlib.util
+          import time
+          import signal
+          import datetime
+          from functools import wraps
+          from django.test import Client
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the project directory to the path
+          project_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, project_dir)
+          
+          # Set up Django environment
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "todo_project.settings")
+          import django
+          django.setup()
+          
+          # First, make sure we have at least one task in the JSON file
+          json_file = os.path.join(project_dir, "tasks.json")
+          
+          if os.path.exists(json_file):
+              with open(json_file, 'r') as f:
+                  tasks = json.load(f)
+          else:
+              tasks = []
+          
+          if not tasks:
+              # Add a task if none exist
+              new_task = {
+                  'id': 1,
+                  'title': 'Task to Delete',
+                  'description': 'This task will be deleted.',
+                  'created_at': datetime.datetime.now().isoformat(),
+                  'completed': False
+              }
+              tasks.append(new_task)
+              with open(json_file, 'w') as f:
+                  json.dump(tasks, f)
+              
+              # Re-read tasks to get the updated list
+              with open(json_file, 'r') as f:
+                  tasks = json.load(f)
+          
+          # Get a task to delete
+          task_to_delete = tasks[0]
+          task_id = task_to_delete['id']
+          
+          # Wrap the client request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_delete_request(client, task_id):
+              response = client.get(f'/delete/{task_id}/', follow=True)
+              return response
+          
+          try:
+              # Create a client
+              client = Client()
+              
+              # Delete the task
+              response = make_delete_request(client, task_id)
+              
+              # Check the response status code
+              assert response.status_code == 200, f"Failed to delete task, status code: {response.status_code}"
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          
+          # Check if the task was deleted from the JSON file
+          with open(json_file, 'r') as f:
+              updated_tasks = json.load(f)
+          
+          for task in updated_tasks:
+              assert task.get('id') != task_id, "Task was not deleted from the JSON file"
+          
+          return True
+
+  - description: "Check Web Interface"
+    preconditions: "The application is running."
+    postconditions: "The web interface contains the required elements."
+    function_to_run: !python/function |
+      def test_web_interface(zerg_state=None):
+          """Test that the Django Todo app has a proper web interface."""
+          print("Testing web interface")
+
+          import os
+          import sys
+          import importlib.util
+          import time
+          import signal
+          from functools import wraps
+          from django.test import Client
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the project directory to the path
+          project_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, project_dir)
+          
+          # Set up Django environment
+          os.environ.setdefault("DJANGO_SETTINGS_MODULE", "todo_project.settings")
+          import django
+          django.setup()
+          
+          # Wrap the client request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_request(client):
+              response = client.get('/')
+              return response
+          
+          try:
+              # Create a client
+              client = Client()
+              
+              # Get the index page
+              response = make_request(client)
+              
+              # Check the response status code
+              assert response.status_code == 200, f"Failed to get index page, status code: {response.status_code}"
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          
+          # Check if the response contains required elements
+          response_content = response.content.decode('utf-8')
+          
+          # Check for form to add tasks
+          assert '<form' in response_content and 'action="/add/' in response_content, "Add task form not found"
+          assert '<input' in response_content and 'name="title"' in response_content, "Title input field not found"
+          
+          # Check for task list section
+          assert '<h1' in response_content and 'Todo' in response_content, "Todo list heading not found"
+          
+          # Check for task action links/buttons
+          assert 'complete' in response_content.lower(), "Complete task functionality not found"
+          assert 'delete' in response_content.lower(), "Delete task functionality not found"
+          
+          return True
+
+references: []
+
+configs:
+  - name: "port"
+    description: "Port on which the Django app will run"
+    value: "8000"
+  - name: "debug"
+    description: "Enable debug mode for the Django app"
+    value: "True"
+  - name: "tasks_file"
+    description: "Path to the JSON file for storing tasks"
+    value: "tasks.json"
+  - name: "test_timeout"
+    description: "Timeout in seconds for test operations"
+    value: "15"
+  - name: "init_timeout"
+    description: "Timeout in seconds for initialization"
+    value: "10"
+# !# Django Todo Application

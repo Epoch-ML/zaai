@@ -1,3 +1,5 @@
+# Zerg Autonomous AI Manifest Suite
+
 domains:
   core:            !include domains/core/core.yaml
   connector:       !include domains/connector/connector.yaml

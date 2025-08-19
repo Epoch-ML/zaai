@@ -1,0 +1,35 @@
+# Hello World
+name: "hello"
+category: "Basic Output"
+description: |
+  Create a simple program that prints 'Hello World' to the console. The program 
+  should execute without errors and output exactly the expected greeting
+
+specs:
+  - description: "Program prints the correct greeting"
+    preconditions: "No strict preconditions"
+    postconditions: "The program prints exactly 'Hello World' to standard output."
+
+tests:
+  - description: "Hello World Output Test"
+    preconditions: "A valid Hello World program file exists"
+    postconditions: "The program prints 'Hello World' and exits successfully"
+    entry_point: "test_hello_world"
+    function_to_run: !python/function |
+      def test_hello_world(zerg_state=None):
+          """Test that the Hello World program prints the expected greeting; Expects a hello_world function in main.py"""
+          print("Executing Hello World program")
+            
+          # NOTE: for testing
+          # print(f"loaded zerg state: {zerg_state}")
+
+          from main import hello_world
+
+          result = hello_world()
+          assert result == "Hello World", f"Expected 'Hello World', got '{output}'"
+
+          return True
+
+references: []
+configs: []
+# !Hello World

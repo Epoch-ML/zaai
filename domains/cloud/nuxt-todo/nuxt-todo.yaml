@@ -1,0 +1,1276 @@
+# Nuxt Todo Application
+name: "nuxt-todo"
+category: "Web Application"
+description: |
+  Create a Nuxt.js-based Todo application that allows users to create, read, update, and delete tasks.
+  The application should have a clean user interface with Tailwind CSS, store tasks and user data in simple JSON files,
+  and provide functionality for marking tasks as complete. The app should also incorporate user authentication.
+  The app should use Nuxt.js for the frontend and file-based storage instead of a traditional database.
+
+specs:
+  - description: "Application creates JSON files for storing tasks and users"
+    preconditions: "Complete todo application implementation"
+    postconditions: "The application successfully creates JSON files to store tasks and user authentication data."
+
+  - description: "User can register and login through the web interface"
+    preconditions: "Complete todo application implementation"
+    postconditions: "A new user can be registered, their details stored in the users JSON file, and they can login with their credentials."
+
+  - description: "User can add a new task through the web interface"
+    preconditions: "Complete todo application implementation with authenticated user"
+    postconditions: "A new task is added to the tasks JSON file and displayed in the task list for that specific user."
+
+  - description: "User can view all their tasks in the web interface"
+    preconditions: "Complete todo application implementation with authenticated user and tasks exist in the JSON file"
+    postconditions: "All tasks for the authenticated user are displayed in the web interface."
+
+  - description: "User can mark a task as complete through the web interface"
+    preconditions: "Complete todo application implementation with authenticated user"
+    postconditions: "The task is marked as complete in the JSON file and visually indicated in the UI with a strikethrough effect."
+
+  - description: "User can delete a task through the web interface"
+    preconditions: "Complete todo application implementation with authenticated user and at least one task exists"
+    postconditions: |
+      The selected task is removed from the JSON file and no longer displayed;
+      This is made possible by a button or icon in the UI as well as through the backend API;
+
+  - description: |
+      Todo app is nicely styled with Tailwind CSS per post conditions 
+    preconditions: "Complete todo application implementation"
+    postconditions:  |
+      The app has Tailwind CSS styling, including: 
+      - Custom font for the tasks
+      - Modern card-based layout with consistent spacing
+      - Different background colors to indicate task status
+      - Tasks are struck out when complete
+      - Smooth animations when tasks are created, completed, or deleted
+      - Responsive design that works well on mobile and desktop
+      The design should be appealing, modern, and showcase Tailwind CSS capabilities
+
+  - description: "App is well architected following Nuxt.js patterns"
+    preconditions: "Complete todo application implementation"
+    postconditions: |
+      App follows Nuxt.js best practices:
+      - Pages directory for routes
+      - Components directory for reusable Vue components
+      - Store directory for state management
+      - Server middleware for API endpoints
+      - Separate files for authentication logic
+      - Clean separation between frontend and backend logic
+
+tests:
+  - description: "Initialize Storage Systems"
+    preconditions: "The application code is available."
+    postconditions: "JSON files are initialized for storing tasks and user data."
+    function_to_run: !python/function |
+      def test_initialize_storage(zerg_state=None):
+        """Test that the Nuxt Todo app initializes the JSON storage correctly."""
+        print("Testing storage initialization")
+        
+        import os
+        import sys
+        import json
+        import time
+        import signal
+        from functools import wraps
+        
+        # Define a timeout handler
+        class TimeoutError(Exception):
+            pass
+            
+        def timeout(seconds=10):
+            def decorator(func):
+                @wraps(func)
+                def wrapper(*args, **kwargs):
+                    def handler(signum, frame):
+                        raise TimeoutError(f"Function timed out after {seconds} seconds")
+                    
+                    # Set the timeout handler
+                    original_handler = signal.getsignal(signal.SIGALRM)
+                    signal.signal(signal.SIGALRM, handler)
+                    signal.alarm(seconds)
+                    
+                    try:
+                        result = func(*args, **kwargs)
+                    finally:
+                        # Reset the alarm and restore original handler
+                        signal.alarm(0)
+                        signal.signal(signal.SIGALRM, original_handler)
+                    return result
+                return wrapper
+            return decorator
+        
+        # Add the app directory to the path
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        sys.path.insert(0, app_dir)
+        
+        # Look for the server data directory
+        server_data_dir = os.path.join(app_dir, "server", "data")
+        
+        # Check if the tasks JSON file exists
+        tasks_file = os.path.join(server_data_dir, "tasks.json")
+        assert os.path.exists(tasks_file), "Tasks JSON file was not created"
+        
+        # Check if the users JSON file exists
+        users_file = os.path.join(server_data_dir, "users.json")
+        assert os.path.exists(users_file), "Users JSON file was not created"
+        
+        # Check if the JSON files have the correct structure
+        with open(tasks_file, 'r') as f:
+            tasks_data = json.load(f)
+            assert isinstance(tasks_data, list), "Tasks should be stored as a list"
+        
+        with open(users_file, 'r') as f:
+            users_data = json.load(f)
+            assert isinstance(users_data, list), "Users should be stored as a list"
+        
+        return True
+
+  - description: "Register User"
+    preconditions: "The storage systems are initialized."
+    postconditions: "A new user is registered in the users JSON file."
+    function_to_run: !python/function |
+      def test_register_user(zerg_state=None):
+          """Test that the Nuxt Todo app can register a new user."""
+          print("Testing user registration")
+
+          import os
+          import sys
+          import json
+          import time
+          import signal
+          import requests
+          from functools import wraps
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the app directory to the path
+          app_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, app_dir)
+          
+          # Get users file path
+          users_file = os.path.join(app_dir, "server", "data", "users.json")
+          
+          # Count users before adding a new one
+          if os.path.exists(users_file):
+              with open(users_file, 'r') as f:
+                  users_before = json.load(f)
+          else:
+              users_before = []
+          
+          # Wrap the request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_register_request():
+              response = requests.post('http://localhost:6000/api/auth/register', json={
+                  'username': 'testuser',
+                  'email': 'test@example.com',
+                  'password': 'password123'
+              })
+              return response
+          
+          try:
+              # Register a new user
+              response = make_register_request()
+              
+              # Check the response status code
+              assert response.status_code in [200, 201], f"Failed to register user, status code: {response.status_code}"
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          except Exception as e:
+              print(f"Error: {e}")
+              return False
+          
+          # Check if the user was added to the JSON file
+          with open(users_file, 'r') as f:
+              users_after = json.load(f)
+          
+          # Verify that a new user was added
+          assert len(users_after) > len(users_before), "No new user was added"
+          
+          # Find the user we just added
+          found_user = False
+          for user in users_after:
+              if user.get('username') == 'testuser' and user.get('email') == 'test@example.com':
+                  found_user = True
+                  break
+          
+          assert found_user, "User was not added to the JSON file"
+          
+          return True
+
+  - description: "Login User"
+    preconditions: "A user is registered in the system."
+    postconditions: "The user can login and receive a JWT token."
+    function_to_run: !python/function |
+      def test_login_user(zerg_state=None):
+          """Test that the Nuxt Todo app can login a user."""
+          print("Testing user login")
+
+          import os
+          import sys
+          import json
+          import time
+          import signal
+          import requests
+          from functools import wraps
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the app directory to the path
+          app_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, app_dir)
+          
+          # Wrap the request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_login_request():
+              response = requests.post('http://localhost:6000/api/auth/login', json={
+                  'email': 'test@example.com',
+                  'password': 'password123'
+              })
+              return response
+          
+          try:
+              # Login the user
+              response = make_login_request()
+              
+              # Check the response status code
+              assert response.status_code == 200, f"Failed to login user, status code: {response.status_code}"
+              
+              # Check if token was returned
+              response_data = response.json()
+              assert 'token' in response_data, "No authentication token returned from login"
+              
+              # Store token in a file for subsequent tests
+              token_file = os.path.join(app_dir, "test_token.txt")
+              with open(token_file, 'w') as f:
+                  f.write(response_data['token'])
+              
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          except Exception as e:
+              print(f"Error: {e}")
+              return False
+          
+          return True
+
+  - description: "Add Task"
+    preconditions: "A user is logged in."
+    postconditions: "A new task is added to the tasks JSON file for the authenticated user."
+    function_to_run: !python/function |
+      def test_add_task(zerg_state=None):
+          """Test that the Nuxt Todo app can add a new task."""
+          print("Testing task addition")
+
+          import os
+          import sys
+          import json
+          import time
+          import signal
+          import requests
+          from functools import wraps
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the app directory to the path
+          app_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, app_dir)
+          
+          # Get tasks file path
+          tasks_file = os.path.join(app_dir, "server", "data", "tasks.json")
+          
+          # Get authentication token
+          token_file = os.path.join(app_dir, "test_token.txt")
+          with open(token_file, 'r') as f:
+              token = f.read().strip()
+          
+          # Count tasks before adding a new one
+          if os.path.exists(tasks_file):
+              with open(tasks_file, 'r') as f:
+                  tasks_before = json.load(f)
+          else:
+              tasks_before = []
+          
+          # Wrap the request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_add_request(token):
+              response = requests.post('http://localhost:6000/api/tasks', json={
+                  'title': 'Test Task',
+                  'description': 'This is a test task.'
+              }, headers={
+                  'Authorization': f'Bearer {token}'
+              })
+              return response
+          
+          try:
+              # Add a task
+              response = make_add_request(token)
+              
+              # Check the response status code
+              assert response.status_code in [200, 201], f"Failed to add task, status code: {response.status_code}"
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          except Exception as e:
+              print(f"Error: {e}")
+              return False
+          
+          # Check if the task was added to the JSON file
+          with open(tasks_file, 'r') as f:
+              tasks_after = json.load(f)
+          
+          # Verify that a new task was added
+          assert len(tasks_after) > len(tasks_before), "No new task was added"
+          
+          # Find the task we just added
+          found_task = False
+          task_id = None
+          for task in tasks_after:
+              if task.get('title') == 'Test Task' and task.get('description') == 'This is a test task.':
+                  found_task = True
+                  assert task.get('completed') is False, "Task should not be marked as completed"
+                  task_id = task.get('id')
+                  break
+          
+          assert found_task, "Task was not added to the JSON file"
+          
+          # Store task ID for subsequent tests
+          task_id_file = os.path.join(app_dir, "test_task_id.txt")
+          with open(task_id_file, 'w') as f:
+              f.write(str(task_id))
+          
+          return True
+
+  - description: "List Tasks"
+    preconditions: "A user is logged in and has at least one task."
+    postconditions: "All tasks for the authenticated user are retrieved."
+    function_to_run: !python/function |
+      def test_list_tasks(zerg_state=None):
+          """Test that the Nuxt Todo app can list tasks for an authenticated user."""
+          print("Testing task listing")
+
+          import os
+          import sys
+          import json
+          import time
+          import signal
+          import requests
+          from functools import wraps
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the app directory to the path
+          app_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, app_dir)
+          
+          # Get authentication token
+          token_file = os.path.join(app_dir, "test_token.txt")
+          with open(token_file, 'r') as f:
+              token = f.read().strip()
+          
+          # Wrap the request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_list_request(token):
+              response = requests.get('http://localhost:6000/api/tasks', headers={
+                  'Authorization': f'Bearer {token}'
+              })
+              return response
+          
+          try:
+              # Get tasks
+              response = make_list_request(token)
+              
+              # Check the response status code
+              assert response.status_code == 200, f"Failed to get tasks, status code: {response.status_code}"
+              
+              # Check response structure
+              tasks = response.json()
+              assert isinstance(tasks, list), "Response is not an array of tasks"
+              
+              # Check if our test task is in the list
+              found_task = False
+              for task in tasks:
+                  if task.get('title') == 'Test Task' and task.get('description') == 'This is a test task.':
+                      found_task = True
+                      break
+              
+              assert found_task, "Test task was not found in the response"
+              
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          except Exception as e:
+              print(f"Error: {e}")
+              return False
+          
+          return True
+
+  - description: "Complete Task"
+    preconditions: "A user is logged in and has at least one incomplete task."
+    postconditions: "The task is marked as complete in the tasks JSON file."
+    function_to_run: !python/function |
+      def test_complete_task(zerg_state=None):
+          """Test that the Nuxt Todo app can mark a task as complete."""
+          print("Testing task completion")
+
+          import os
+          import sys
+          import json
+          import time
+          import signal
+          import requests
+          from functools import wraps
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the app directory to the path
+          app_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, app_dir)
+          
+          # Get tasks file path
+          tasks_file = os.path.join(app_dir, "server", "data", "tasks.json")
+          
+          # Get authentication token
+          token_file = os.path.join(app_dir, "test_token.txt")
+          with open(token_file, 'r') as f:
+              token = f.read().strip()
+          
+          # Get task ID
+          task_id_file = os.path.join(app_dir, "test_task_id.txt")
+          with open(task_id_file, 'r') as f:
+              task_id = f.read().strip()
+          
+          # Wrap the request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_complete_request(token, task_id):
+              response = requests.put(f'http://localhost:6000/api/tasks/{task_id}/complete', headers={
+                  'Authorization': f'Bearer {token}'
+              })
+              return response
+          
+          try:
+              # Complete the task
+              response = make_complete_request(token, task_id)
+              
+              # Check the response status code
+              assert response.status_code == 200, f"Failed to complete task, status code: {response.status_code}"
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          except Exception as e:
+              print(f"Error: {e}")
+              return False
+          
+          # Check if the task was marked as complete in the JSON file
+          with open(tasks_file, 'r') as f:
+              tasks = json.load(f)
+          
+          completed = False
+          for task in tasks:
+              if str(task.get('id')) == task_id:
+                  completed = task.get('completed')
+                  break
+          
+          assert completed is True, "Task was not marked as completed in the JSON file"
+          
+          return True
+
+  - description: "Delete Task"
+    preconditions: "A user is logged in and has at least one task."
+    postconditions: "The task is deleted from the tasks JSON file."
+    function_to_run: !python/function |
+      def test_delete_task(zerg_state=None):
+          """Test that the Nuxt Todo app can delete a task."""
+          print("Testing task deletion")
+
+          import os
+          import sys
+          import json
+          import time
+          import signal
+          import requests
+          from functools import wraps
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the app directory to the path
+          app_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, app_dir)
+          
+          # Get tasks file path
+          tasks_file = os.path.join(app_dir, "server", "data", "tasks.json")
+          
+          # Get authentication token
+          token_file = os.path.join(app_dir, "test_token.txt")
+          with open(token_file, 'r') as f:
+              token = f.read().strip()
+          
+          # Get task ID
+          task_id_file = os.path.join(app_dir, "test_task_id.txt")
+          with open(task_id_file, 'r') as f:
+              task_id = f.read().strip()
+          
+          # Wrap the request with a timeout
+          @timeout(15)  # 15 second timeout for web requests
+          def make_delete_request(token, task_id):
+              response = requests.delete(f'http://localhost:6000/api/tasks/{task_id}', headers={
+                  'Authorization': f'Bearer {token}'
+              })
+              return response
+          
+          try:
+              # Delete the task
+              response = make_delete_request(token, task_id)
+              
+              # Check the response status code
+              assert response.status_code in [200, 204], f"Failed to delete task, status code: {response.status_code}"
+          except TimeoutError as e:
+              print(f"Error: {e}")
+              return False
+          except Exception as e:
+              print(f"Error: {e}")
+              return False
+          
+          # Check if the task was deleted from the JSON file
+          with open(tasks_file, 'r') as f:
+              tasks = json.load(f)
+          
+          for task in tasks:
+              assert str(task.get('id')) != task_id, "Task was not deleted from the JSON file"
+          
+          return True
+
+  - description: "Check Web Interface"
+    preconditions: "The application is running."
+    postconditions: "The web interface contains the required elements."
+    function_to_run: !python/function |
+      def test_web_interface(zerg_state=None):
+          """Test that the Nuxt Todo app has a proper web interface."""
+          print("Testing web interface")
+
+          import os
+          import sys
+          import time
+          import signal
+          import requests
+          from functools import wraps
+          from selenium import webdriver
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+          from selenium.webdriver.chrome.options import Options
+          
+          # Define a timeout handler
+          class TimeoutError(Exception):
+              pass
+              
+          def timeout(seconds=10):
+              def decorator(func):
+                  @wraps(func)
+                  def wrapper(*args, **kwargs):
+                      def handler(signum, frame):
+                          raise TimeoutError(f"Function timed out after {seconds} seconds")
+                      
+                      # Set the timeout handler
+                      original_handler = signal.getsignal(signal.SIGALRM)
+                      signal.signal(signal.SIGALRM, handler)
+                      signal.alarm(seconds)
+                      
+                      try:
+                          result = func(*args, **kwargs)
+                      finally:
+                          # Reset the alarm and restore original handler
+                          signal.alarm(0)
+                          signal.signal(signal.SIGALRM, original_handler)
+                      return result
+                  return wrapper
+              return decorator
+          
+          # Add the app directory to the path
+          app_dir = os.path.dirname(os.path.abspath(__file__))
+          sys.path.insert(0, app_dir)
+          
+          # Configure Chrome options for headless browsing
+          chrome_options = Options()
+          chrome_options.add_argument("--headless")
+          chrome_options.add_argument("--no-sandbox")
+          chrome_options.add_argument("--disable-dev-shm-usage")
+          
+          try:
+              # Create a new Chrome driver
+              driver = webdriver.Chrome(options=chrome_options)
+              
+              # Navigate to the login page
+              driver.get("http://localhost:6000/login")
+              
+              # Check for login form
+              login_form = WebDriverWait(driver, 10).until(
+                  EC.presence_of_element_located((By.TAG_NAME, "form"))
+              )
+              assert login_form is not None, "Login form not found"
+              
+              # Check for email input
+              email_input = driver.find_element(By.CSS_SELECTOR, "input[type='email']")
+              assert email_input is not None, "Email input field not found"
+              
+              # Check for password input
+              password_input = driver.find_element(By.CSS_SELECTOR, "input[type='password']")
+              assert password_input is not None, "Password input field not found"
+              
+              # Check for login button
+              login_button = driver.find_element(By.CSS_SELECTOR, "button[type='submit']")
+              assert login_button is not None, "Login button not found"
+              
+              # Fill in and submit login form
+              email_input.send_keys("test@example.com")
+              password_input.send_keys("password123")
+              login_button.click()
+              
+              # Wait for navigation to complete (Todo page)
+              WebDriverWait(driver, 10).until(
+                  EC.url_contains("/todos")
+              )
+              
+              # Check if navigation to todos page was successful
+              current_url = driver.current_url
+              assert "/todos" in current_url, "Login did not redirect to todos page"
+              
+              # Check for task form
+              task_form = WebDriverWait(driver, 10).until(
+                  EC.presence_of_element_located((By.TAG_NAME, "form"))
+              )
+              assert task_form is not None, "Add task form not found"
+              
+              # Check for task title input
+              title_input = driver.find_element(By.CSS_SELECTOR, "input[name='title']")
+              assert title_input is not None, "Task title input field not found"
+              
+              # Check for task list
+              task_list = WebDriverWait(driver, 10).until(
+                  EC.presence_of_element_located((By.CSS_SELECTOR, "[data-testid='task-list']"))
+              )
+              assert task_list is not None, "Task list not found"
+              
+              # Check for Tailwind CSS classes
+              html_source = driver.page_source
+              assert "bg-" in html_source, "Missing Tailwind background classes"
+              assert "text-" in html_source, "Missing Tailwind text classes"
+              assert "p-" in html_source, "Missing Tailwind padding classes"
+              assert "rounded-" in html_source, "Missing Tailwind border-radius classes"
+              
+          except Exception as e:
+              print(f"Error testing web interface: {e}")
+              try:
+                  driver.quit()
+              except:
+                  pass
+              return False
+          
+          driver.quit()
+          return True
+
+
+  # TODO: I actually like this approach, but right now we only support python don't we?
+  # - description: "Initialize Storage Systems"
+  #   preconditions: "The application code is available."
+  #   postconditions: "JSON files are initialized for storing tasks and user data."
+  #   function_to_run: !javascript/function |
+  #     async function testInitializeStorage(zerg_state=None) {
+  #       console.log("Testing storage initialization");
+        
+  #       const fs = require('fs');
+  #       const path = require('path');
+        
+  #       // Get app directory
+  #       const appDir = process.cwd();
+        
+  #       // Check if the tasks JSON file exists
+  #       const tasksFile = path.join(appDir, 'server/data/tasks.json');
+  #       if (!fs.existsSync(tasksFile)) {
+  #         throw new Error("Tasks JSON file was not created");
+  #       }
+        
+  #       // Check if the users JSON file exists
+  #       const usersFile = path.join(appDir, 'server/data/users.json');
+  #       if (!fs.existsSync(usersFile)) {
+  #         throw new Error("Users JSON file was not created");
+  #       }
+        
+  #       // Check if the JSON files have the correct structure
+  #       const tasksData = JSON.parse(fs.readFileSync(tasksFile, 'utf8'));
+  #       if (!Array.isArray(tasksData)) {
+  #         throw new Error("Tasks should be stored as an array");
+  #       }
+        
+  #       const usersData = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+  #       if (!Array.isArray(usersData)) {
+  #         throw new Error("Users should be stored as an array");
+  #       }
+        
+  #       return true;
+  #     }
+
+  # - description: "Register User"
+  #   preconditions: "The storage systems are initialized."
+  #   postconditions: "A new user is registered in the users JSON file."
+  #   function_to_run: !javascript/function |
+  #     async function testRegisterUser(zerg_state=None) {
+  #       console.log("Testing user registration");
+        
+  #       const axios = require('axios');
+  #       const fs = require('fs');
+  #       const path = require('path');
+        
+  #       // Get app directory
+  #       const appDir = process.cwd();
+  #       const usersFile = path.join(appDir, 'server/data/users.json');
+        
+  #       // Count users before adding a new one
+  #       let usersBefore = [];
+  #       if (fs.existsSync(usersFile)) {
+  #         usersBefore = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+  #       }
+        
+  #       try {
+  #         // Register a new user
+  #         const response = await axios.post('http://localhost:6000/api/auth/register', {
+  #           username: 'testuser',
+  #           email: 'test@example.com',
+  #           password: 'password123'
+  #         });
+          
+  #         // Check the response status code
+  #         if (response.status !== 200 && response.status !== 201) {
+  #           throw new Error(`Failed to register user, status code: ${response.status}`);
+  #         }
+  #       } catch (error) {
+  #         console.error('Error registering user:', error.message);
+  #         return false;
+  #       }
+        
+  #       // Check if the user was added to the JSON file
+  #       const usersAfter = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+        
+  #       // Verify that a new user was added
+  #       if (usersAfter.length <= usersBefore.length) {
+  #         throw new Error("No new user was added");
+  #       }
+        
+  #       // Find the user we just added
+  #       const foundUser = usersAfter.find(user => 
+  #         user.username === 'testuser' && 
+  #         user.email === 'test@example.com'
+  #       );
+        
+  #       if (!foundUser) {
+  #         throw new Error("User was not added to the JSON file");
+  #       }
+        
+  #       return true;
+  #     }
+
+  # - description: "Login User"
+  #   preconditions: "A user is registered in the system."
+  #   postconditions: "The user can login and receive a JWT token."
+  #   function_to_run: !javascript/function |
+  #     async function testLoginUser(zerg_state=None) {
+  #       console.log("Testing user login");
+        
+  #       const axios = require('axios');
+        
+  #       try {
+  #         // Login with the test user
+  #         const response = await axios.post('http://localhost:6000/api/auth/login', {
+  #           email: 'test@example.com',
+  #           password: 'password123'
+  #         });
+          
+  #         // Check the response status code
+  #         if (response.status !== 200) {
+  #           throw new Error(`Failed to login user, status code: ${response.status}`);
+  #         }
+          
+  #         // Check if token was returned
+  #         if (!response.data.token) {
+  #           throw new Error("No authentication token returned from login");
+  #         }
+          
+  #         // Store token for subsequent tests
+  #         process.env.TEST_AUTH_TOKEN = response.data.token;
+          
+  #         return true;
+  #       } catch (error) {
+  #         console.error('Error logging in user:', error.message);
+  #         return false;
+  #       }
+  #     }
+
+  # - description: "Add Task"
+  #   preconditions: "A user is logged in."
+  #   postconditions: "A new task is added to the tasks JSON file for the authenticated user."
+  #   function_to_run: !javascript/function |
+  #     async function testAddTask(zerg_state=None) {
+  #       console.log("Testing task addition");
+        
+  #       const axios = require('axios');
+  #       const fs = require('fs');
+  #       const path = require('path');
+        
+  #       // Get app directory
+  #       const appDir = process.cwd();
+  #       const tasksFile = path.join(appDir, 'server/data/tasks.json');
+        
+  #       // Count tasks before adding a new one
+  #       let tasksBefore = [];
+  #       if (fs.existsSync(tasksFile)) {
+  #         tasksBefore = JSON.parse(fs.readFileSync(tasksFile, 'utf8'));
+  #       }
+        
+  #       try {
+  #         // Add a new task
+  #         const response = await axios.post('http://localhost:6000/api/tasks', {
+  #           title: 'Test Task',
+  #           description: 'This is a test task.'
+  #         }, {
+  #           headers: {
+  #             'Authorization': `Bearer ${process.env.TEST_AUTH_TOKEN}`
+  #           }
+  #         });
+          
+  #         // Check the response status code
+  #         if (response.status !== 200 && response.status !== 201) {
+  #           throw new Error(`Failed to add task, status code: ${response.status}`);
+  #         }
+  #       } catch (error) {
+  #         console.error('Error adding task:', error.message);
+  #         return false;
+  #       }
+        
+  #       // Check if the task was added to the JSON file
+  #       const tasksAfter = JSON.parse(fs.readFileSync(tasksFile, 'utf8'));
+        
+  #       // Verify that a new task was added
+  #       if (tasksAfter.length <= tasksBefore.length) {
+  #         throw new Error("No new task was added");
+  #       }
+        
+  #       // Store the task ID for subsequent tests
+  #       const latestTask = tasksAfter[tasksAfter.length - 1];
+  #       process.env.TEST_TASK_ID = latestTask.id;
+        
+  #       return true;
+  #     }
+
+  # - description: "List Tasks"
+  #   preconditions: "A user is logged in and has at least one task."
+  #   postconditions: "All tasks for the authenticated user are retrieved."
+  #   function_to_run: !javascript/function |
+  #     async function testListTasks(zerg_state=None) {
+  #       console.log("Testing task listing");
+        
+  #       const axios = require('axios');
+        
+  #       try {
+  #         // Get all tasks for the authenticated user
+  #         const response = await axios.get('http://localhost:6000/api/tasks', {
+  #           headers: {
+  #             'Authorization': `Bearer ${process.env.TEST_AUTH_TOKEN}`
+  #           }
+  #         });
+          
+  #         // Check the response status code
+  #         if (response.status !== 200) {
+  #           throw new Error(`Failed to get tasks, status code: ${response.status}`);
+  #         }
+          
+  #         // Check if tasks were returned
+  #         if (!Array.isArray(response.data)) {
+  #           throw new Error("Response is not an array of tasks");
+  #         }
+          
+  #         // Verify that the test task is included
+  #         const foundTask = response.data.find(task => 
+  #           task.title === 'Test Task' && 
+  #           task.description === 'This is a test task.'
+  #         );
+          
+  #         if (!foundTask) {
+  #           throw new Error("Test task was not found in the response");
+  #         }
+          
+  #         return true;
+  #       } catch (error) {
+  #         console.error('Error listing tasks:', error.message);
+  #         return false;
+  #       }
+  #     }
+
+  # - description: "Complete Task"
+  #   preconditions: "A user is logged in and has at least one incomplete task."
+  #   postconditions: "The task is marked as complete in the tasks JSON file."
+  #   function_to_run: !javascript/function |
+  #     async function testCompleteTask(zerg_state=None) {
+  #       console.log("Testing task completion");
+        
+  #       const axios = require('axios');
+  #       const fs = require('fs');
+  #       const path = require('path');
+        
+  #       // Get app directory
+  #       const appDir = process.cwd();
+  #       const tasksFile = path.join(appDir, 'server/data/tasks.json');
+        
+  #       try {
+  #         // Mark the task as complete
+  #         const response = await axios.put(`http://localhost:6000/api/tasks/${process.env.TEST_TASK_ID}/complete`, {}, {
+  #           headers: {
+  #             'Authorization': `Bearer ${process.env.TEST_AUTH_TOKEN}`
+  #           }
+  #         });
+          
+  #         // Check the response status code
+  #         if (response.status !== 200) {
+  #           throw new Error(`Failed to complete task, status code: ${response.status}`);
+  #         }
+  #       } catch (error) {
+  #         console.error('Error completing task:', error.message);
+  #         return false;
+  #       }
+        
+  #       // Check if the task was marked as complete in the JSON file
+  #       const tasks = JSON.parse(fs.readFileSync(tasksFile, 'utf8'));
+        
+  #       const completedTask = tasks.find(task => task.id === process.env.TEST_TASK_ID);
+  #       if (!completedTask) {
+  #         throw new Error("Task not found in the JSON file");
+  #       }
+        
+  #       if (!completedTask.completed) {
+  #         throw new Error("Task was not marked as completed in the JSON file");
+  #       }
+        
+  #       return true;
+  #     }
+
+  # - description: "Delete Task"
+  #   preconditions: "A user is logged in and has at least one task."
+  #   postconditions: "The task is deleted from the tasks JSON file."
+  #   function_to_run: !javascript/function |
+  #     async function testDeleteTask(zerg_state=None) {
+  #       console.log("Testing task deletion");
+        
+  #       const axios = require('axios');
+  #       const fs = require('fs');
+  #       const path = require('path');
+        
+  #       // Get app directory
+  #       const appDir = process.cwd();
+  #       const tasksFile = path.join(appDir, 'server/data/tasks.json');
+        
+  #       try {
+  #         // Delete the task
+  #         const response = await axios.delete(`http://localhost:6000/api/tasks/${process.env.TEST_TASK_ID}`, {
+  #           headers: {
+  #             'Authorization': `Bearer ${process.env.TEST_AUTH_TOKEN}`
+  #           }
+  #         });
+          
+  #         // Check the response status code
+  #         if (response.status !== 200 && response.status !== 204) {
+  #           throw new Error(`Failed to delete task, status code: ${response.status}`);
+  #         }
+  #       } catch (error) {
+  #         console.error('Error deleting task:', error.message);
+  #         return false;
+  #       }
+        
+  #       // Check if the task was deleted from the JSON file
+  #       const tasks = JSON.parse(fs.readFileSync(tasksFile, 'utf8'));
+        
+  #       const deletedTask = tasks.find(task => task.id === process.env.TEST_TASK_ID);
+  #       if (deletedTask) {
+  #         throw new Error("Task was not deleted from the JSON file");
+  #       }
+        
+  #       return true;
+  #     }
+
+  # - description: "Check Web Interface"
+  #   preconditions: "The application is running."
+  #   postconditions: "The web interface contains the required elements."
+  #   function_to_run: !javascript/function |
+  #     async function testWebInterface(zerg_state=None) {
+  #       console.log("Testing web interface");
+        
+  #       const puppeteer = require('puppeteer');
+        
+  #       try {
+  #         // Launch a headless browser
+  #         const browser = await puppeteer.launch({ headless: true });
+  #         const page = await browser.newPage();
+          
+  #         // Navigate to the login page
+  #         await page.goto('http://localhost:6000/login');
+          
+  #         // Check for login form
+  #         const loginForm = await page.$('form');
+  #         if (!loginForm) {
+  #           throw new Error("Login form not found");
+  #         }
+          
+  #         // Check for email input
+  #         const emailInput = await page.$('input[type="email"]');
+  #         if (!emailInput) {
+  #           throw new Error("Email input field not found");
+  #         }
+          
+  #         // Check for password input
+  #         const passwordInput = await page.$('input[type="password"]');
+  #         if (!passwordInput) {
+  #           throw new Error("Password input field not found");
+  #         }
+          
+  #         // Check for login button
+  #         const loginButton = await page.$('button[type="submit"]');
+  #         if (!loginButton) {
+  #           throw new Error("Login button not found");
+  #         }
+          
+  #         // Fill in and submit login form
+  #         await emailInput.type('test@example.com');
+  #         await passwordInput.type('password123');
+  #         await loginButton.click();
+          
+  #         // Wait for navigation to complete
+  #         await page.waitForNavigation();
+          
+  #         // Check if navigation to todos page was successful
+  #         const currentUrl = page.url();
+  #         if (!currentUrl.includes('/todos')) {
+  #           throw new Error("Login did not redirect to todos page");
+  #         }
+          
+  #         // Check for task form
+  #         const taskForm = await page.$('form');
+  #         if (!taskForm) {
+  #           throw new Error("Add task form not found");
+  #         }
+          
+  #         // Check for task title input
+  #         const titleInput = await page.$('input[name="title"]');
+  #         if (!titleInput) {
+  #           throw new Error("Task title input field not found");
+  #         }
+          
+  #         // Check for task list section
+  #         const taskList = await page.$('[data-testid="task-list"]');
+  #         if (!taskList) {
+  #           throw new Error("Task list not found");
+  #         }
+          
+  #         // Check for Tailwind CSS classes
+  #         const hasStyleClasses = await page.evaluate(() => {
+  #           return document.body.innerHTML.includes('bg-') &&
+  #                  document.body.innerHTML.includes('text-') &&
+  #                  document.body.innerHTML.includes('p-') &&
+  #                  document.body.innerHTML.includes('rounded-');
+  #         });
+          
+  #         if (!hasStyleClasses) {
+  #           throw new Error("Tailwind CSS classes not found in the HTML");
+  #         }
+          
+  #         await browser.close();
+  #         return true;
+  #       } catch (error) {
+  #         console.error('Error testing web interface:', error.message);
+  #         return false;
+  #       }
+  #     }
+
+references: []
+
+configs:
+  - name: "host"
+    description: "Hostname for the Nuxt app"
+    value: "localhost"
+  - name: "port"
+    description: "Port on which the Nuxt app will run"
+    value: "6000"
+  - name: "debug"
+    description: "Enable development mode for Nuxt"
+    value: "true"
+  - name: "tasks_file"
+    description: "Path to the JSON file for storing tasks"
+    value: "server/data/tasks.json"
+  - name: "users_file"
+    description: "Path to the JSON file for storing user data"
+    value: "server/data/users.json"
+  - name: "jwt_secret"
+    description: "Secret key for JWT token generation"
+    value: "todo-app-secret-key-change-in-production"
+  - name: "token_expiry"
+    description: "JWT token expiry time"
+    value: "24h"
+
+  - name: "additional considerations"
+    description: |
+      Additional considerations for the implementation of the Nuxt Todo app
+    value: [
+      "You are an elite full stack engineer and you are nice to work with to boot",
+      "If you are able to meet all the requirements of specs and unit tests, and deliver a working product, you will get a billion dollars ($1B)",
+      "You are a master of encapsulation and architecture, and love to write easy to read code and split things up into files as appropriate and required",
+      "Create a modern, responsive UI using Tailwind CSS with attention to animations and transitions",
+      "Implement JWT-based authentication with proper token handling",
+      "Keep all data stored in JSON files instead of a traditional database",
+      "Structure the application following Nuxt.js best practices with separate components, pages, and server middleware",
+      "Ensure tasks are properly associated with users, so users can only see and modify their own tasks",
+      "Add loading states and error handling throughout the application",
+      "Use transitions for smooth animations when adding, completing, or removing tasks"
+    ]
+# !Nuxt Todo Application

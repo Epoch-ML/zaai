@@ -1,0 +1,229 @@
+# Zendesk Customer Support Service
+name: "zendesk"
+category: "Customer Support Service"
+description: |
+  Create a connector that uses the Zendesk API to manage tickets, users, and support interactions. 
+  The connector must save the Zendesk subdomain, email, and API token, and provide functionality
+  to create, update, and retrieve tickets and users.
+
+specs:
+  - description: "Connector stores Zendesk authentication credentials"
+    preconditions: "The system state has not yet been configured for Zendesk."
+    postconditions: "The connector successfully saves the Zendesk subdomain, email, and API token to state."
+
+  - description: "Connector creates a new ticket in Zendesk"
+    preconditions: "Zendesk is configured with valid credentials."
+    postconditions: "The connector creates a new support ticket in Zendesk."
+
+  - description: "Connector retrieves tickets from Zendesk"
+    preconditions: "Zendesk is configured and tickets exist in the account."
+    postconditions: "The connector retrieves and displays a list of tickets from Zendesk."
+
+  - description: "Connector updates an existing ticket in Zendesk"
+    preconditions: "Zendesk is configured and a specific ticket exists to be updated."
+    postconditions: "The connector updates the specified ticket with new information."
+
+  - description: "Connector executes without additional user intervention"
+    preconditions: "All necessary packages are pre-installed."
+    postconditions: "The connector code runs and executes correctly (e.g. passes a health check)."
+
+tests:
+  - description: "Create Zendesk Ticket"
+    preconditions: "Zendesk configuration is stored in state."
+    postconditions: "Connector creates a new ticket in Zendesk."
+    function_to_run: !python/function |
+      def test_create_zendesk_ticket(zerg_state=None):
+        """Test that the Zendesk connector creates a new ticket."""
+        print("Creating new ticket using Zendesk API")
+        
+        assert zerg_state, "this test requires valid zerg_state"
+
+        # Ensure required keys exist; use dict.get() for safe retrieval.
+        zendesk_subdomain = zerg_state.get("zendesk_subdomain").get("value")
+        zendesk_email = zerg_state.get("zendesk_email").get("value")
+        zendesk_api_token = zerg_state.get("zendesk_api_token").get("value")
+
+        # Basic assertions to verify all necessary fields are present.
+        assert zendesk_subdomain, "Missing zendesk_subdomain in agent state"
+        assert zendesk_email, "Missing zendesk_email in agent state"
+        assert zendesk_api_token, "Missing zendesk_api_token in agent state"
+
+        # Attempt to import the ZendeskConnector object.
+        from connector import ZendeskConnector
+
+        connector = ZendeskConnector(
+            zendesk_subdomain=zendesk_subdomain,
+            zendesk_email=zendesk_email,
+            zendesk_api_token=zendesk_api_token
+        )
+
+        # Get a valid requester
+        users = connector.get_users(role="end-user", limit=1)
+        assert users and len(users) > 0, "No end-users found in Zendesk"
+        requester_id = users[0]["id"]
+
+        ticket_data = {
+            "subject": "Test Ticket",
+            "comment": {
+                "body": "This is a test ticket created by the connector."
+            },
+            "priority": "normal",
+            "requester_id": requester_id
+        }
+
+        ticket_id = connector.create_ticket(
+            ticket_data=ticket_data
+        )
+
+        assert ticket_id, "Ticket was not created successfully"
+
+        return True
+
+  - description: "Retrieve Zendesk Tickets"
+    preconditions: "Zendesk is configured and tickets exist in the account."
+    postconditions: "The connector retrieves a list of tickets from Zendesk."
+    function_to_run: !python/function |
+      def test_retrieve_zendesk_tickets(zerg_state=None):
+          """Test that the Zendesk connector retrieves tickets."""
+          print("Retrieving tickets from Zendesk")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          zendesk_subdomain = zerg_state.get("zendesk_subdomain").get("value")
+          zendesk_email = zerg_state.get("zendesk_email").get("value")
+          zendesk_api_token = zerg_state.get("zendesk_api_token").get("value")
+
+          assert zendesk_subdomain, "Missing zendesk_subdomain in agent state"
+          assert zendesk_email, "Missing zendesk_email in agent state"
+          assert zendesk_api_token, "Missing zendesk_api_token in agent state"
+
+          from connector import ZendeskConnector
+
+          connector = ZendeskConnector(
+              zendesk_subdomain=zendesk_subdomain,
+              zendesk_email=zendesk_email,
+              zendesk_api_token=zendesk_api_token
+          )  
+
+          # Get recent tickets
+          tickets = connector.get_tickets(
+              status="open",
+              sort_by="created_at",
+              sort_order="desc",
+              limit=10
+          )
+
+          assert tickets and len(tickets) > 0, "No open tickets retrieved from Zendesk"
+
+          return True
+
+  - description: "Update Zendesk Ticket"
+    preconditions: "Zendesk is configured and a specific ticket exists to be updated."
+    postconditions: "The connector updates the specified ticket with new information."
+    function_to_run: !python/function |
+      def test_update_zendesk_ticket(zerg_state=None):
+          """Test that the Zendesk connector updates an existing ticket."""
+          print("Updating existing Zendesk ticket")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          zendesk_subdomain = zerg_state.get("zendesk_subdomain").get("value")
+          zendesk_email = zerg_state.get("zendesk_email").get("value")
+          zendesk_api_token = zerg_state.get("zendesk_api_token").get("value")
+
+          assert zendesk_subdomain, "Missing zendesk_subdomain in agent state"
+          assert zendesk_email, "Missing zendesk_email in agent state"
+          assert zendesk_api_token, "Missing zendesk_api_token in agent state"
+
+          from connector import ZendeskConnector
+
+          connector = ZendeskConnector(
+              zendesk_subdomain=zendesk_subdomain,
+              zendesk_email=zendesk_email,
+              zendesk_api_token=zendesk_api_token
+          )  
+
+          # Get the first open ticket
+          tickets = connector.get_tickets(status="open", limit=1)
+          assert tickets and len(tickets) > 0, "No open tickets found in Zendesk"
+          ticket_id = tickets[0]["id"]
+
+          update_data = {
+              "subject": "Updated Test Ticket",
+              "comment": {
+                  "body": "This ticket has been updated by the connector.",
+                  "public": True
+              },
+              "priority": "high"
+          }
+
+          result = connector.update_ticket(
+              ticket_id=ticket_id,
+              update_data=update_data
+          )
+
+          assert result is True, "Ticket was not updated successfully"
+
+          return True
+
+  - description: "Add Ticket Comment"
+    preconditions: "Zendesk is configured and a ticket exists to add a comment to."
+    postconditions: "The connector adds a comment to a Zendesk ticket."
+    function_to_run: !python/function |
+      def test_add_ticket_comment(zerg_state=None):
+          """Test that the Zendesk connector adds a comment to a ticket."""
+          print("Adding comment to Zendesk ticket")
+          
+          assert zerg_state, "this test requires valid zerg_state"
+
+          # Ensure required keys exist; use dict.get() for safe retrieval.
+          zendesk_subdomain = zerg_state.get("zendesk_subdomain").get("value")
+          zendesk_email = zerg_state.get("zendesk_email").get("value")
+          zendesk_api_token = zerg_state.get("zendesk_api_token").get("value")
+
+          # Basic assertions to verify all necessary fields are present.
+          assert zendesk_subdomain, "Missing zendesk_subdomain in agent state"
+          assert zendesk_email, "Missing zendesk_email in agent state"
+          assert zendesk_api_token, "Missing zendesk_api_token in agent state"
+
+          # Attempt to import the ZendeskConnector object.
+          from connector import ZendeskConnector
+
+          connector = ZendeskConnector(
+              zendesk_subdomain=zendesk_subdomain,
+              zendesk_email=zendesk_email,
+              zendesk_api_token=zendesk_api_token
+          )
+
+          # Get the first open ticket
+          tickets = connector.get_tickets(status="open", limit=1)
+          assert tickets and len(tickets) > 0, "No open tickets found in Zendesk"
+          ticket_id = tickets[0]["id"]
+          
+          comment_data = {
+              "body": "This is a test comment added by the connector.",
+              "public": True
+          }
+          
+          comment_id = connector.add_comment(
+              ticket_id=ticket_id,
+              comment_data=comment_data
+          )
+
+          assert comment_id, "Comment was not added successfully"
+
+          return True
+
+references: []
+
+configs:
+  - name: "zendesk_subdomain"
+    description: "Zendesk subdomain (e.g. 'company' in 'company.zendesk.com')"
+    value: !env/var
+  - name: "zendesk_email"
+    description: "Zendesk email for authentication"
+    value: !env/var
+  - name: "zendesk_api_token"
+    description: "Zendesk API token for authentication"
+    value: !env/var
+# !# Zendesk Customer Support Service

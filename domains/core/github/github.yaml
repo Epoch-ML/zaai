@@ -1,0 +1,50 @@
+# GitHub Top Repositories
+name: "github"
+category: "API Integration"
+description: "Create an API integration that retrieves the top 10 GitHub repositories by star count. The connector should run code that repeatedly fixes issues until it works, then outputs the repositories."
+
+specs:
+  - description: "Connector retrieves the top 10 GitHub repositories"
+    preconditions: "A valid network connection and no API rate limits."
+    postconditions: "The connector returns exactly 10 repositories with valid data (name, star count, and URL)."
+  - description: "Connector handles API errors gracefully"
+    preconditions: "Simulated API error (for example, using an invalid API token)."
+    postconditions: "The connector logs errors and either returns fallback data or an error message."
+  - description: "Connector implements retry logic on failed requests"
+    preconditions: "A simulated API failure condition."
+    postconditions: "The connector retries failed API calls up to the maximum configured retries."
+
+tests:
+  - description: "Retrieve Top 10 GitHub Repositories"
+    preconditions: "A valid API connection to GitHub."
+    postconditions: "The connector returns a list of 10 repositories with keys 'name', 'stars', and 'url'."
+    function_to_run: !python/function |
+      def test_get_top_repositories(zerg_state=None):
+          """Test retrieving the top 10 GitHub repositories."""
+          print("Fetching top 10 GitHub repositories")
+
+          # Attempt to import the GitHubConnector object.
+          from main import GitHubConnector
+
+          connector = GitHubConnector()
+          repos = connector.get_top_repositories(count=10)
+          assert isinstance(repos, list), "Response is not a list"
+          assert len(repos) == 10, "Did not retrieve exactly 10 repositories"
+
+          for repo in repos:
+              assert isinstance(repo, dict), "Repository data is not a dictionary"
+              assert "name" in repo, "Missing repository name"
+              assert "stars" in repo, "Missing repository star count"
+              assert "url" in repo, "Missing repository URL"
+
+          print("Retrieved repositories:", repos)
+
+          return True
+
+references: []
+
+configs:
+  - name: "endpoint"
+    description: "GitHub API endpoint for repository search"
+    value: "https://api.github.com/search/repositories"
+# !GitHub Top Repositories

@@ -1,0 +1,159 @@
+# SendGrid Email Service
+name: "sendgrid"
+category: "Email Service"
+description: |
+  Create a connector that uses the SendGrid API to send emails. 
+  The connector must save the SendGrid API key and sender email, and provide functionality to send emails.
+
+specs:
+  - description: "Connector stores SendGrid API key and sender email"
+    preconditions: "The system state has not yet been configured for SendGrid."
+    postconditions: "The connector successfully saves the SendGrid API key and sender email to state."
+
+  - description: "Connector sends an email to idanbeck@gmail.com"
+    preconditions: "SendGrid is configured with a valid API key and sender email."
+    postconditions: "The connector sends an email to idanbeck@gmail.com."
+
+  - description: "Connector sends an email including the top 10 Google News headlines"
+    preconditions: "SendGrid is configured and the connector can fetch Google News headlines."
+    postconditions: "The email sent by the connector includes the top 10 headlines."
+
+  - description: "Connector sends an email including the current weather for San Jose, CA"
+    preconditions: "SendGrid is configured and weather data for San Jose, CA is available."
+    postconditions: "The email sent by the connector includes the current weather for San Jose, CA."
+
+  - description: "Connector executes without additional user intervention"
+    preconditions: "All necessary packages are pre-installed."
+    postconditions: "The connector code runs and executes correctly (e.g. passes a health check)."
+
+tests:
+  - description: "Send Email"
+    preconditions: "SendGrid configuration is stored in state."
+    postconditions: "Connector sends an email to recipient email."
+    function_to_run: !python/function |
+      def test_send_email_to_recipient(zerg_state=None):
+        """Test that the SendGrid connector sends an email to idanbeck@gmail.com."""
+        print("Sending email using sendgrid api")
+        
+        assert zerg_state, "this test requires valid zerg_state"
+
+        # Ensure required keys exist; use dict.get() for safe retrieval.
+        sendgrid_api_key = zerg_state.get("sendgrid_api_key").get("value")
+        sender_email = zerg_state.get("sender email").get("value")
+        recipient_email = zerg_state.get("recipient email").get("value")
+
+        # Basic assertions to verify all necessary fields are present.
+        assert sendgrid_api_key, "Missing sendgrid_api_key in agent state"
+        assert sender_email, "Missing sender email in agent state"
+        assert recipient_email, "Missing recipient email in agent state"
+
+        # Attempt to import the SendGridConnector object.
+        from connector import SendGridConnector
+
+        connector = SendGridConnector(
+            sendgrid_api_key=sendgrid_api_key,
+            sender_email=sender_email
+        )
+
+        result = connector.send_email(
+            recipient=recipient_email,
+            subject="Test Email",
+            body="This is a test email."
+        )
+
+        assert result is True, "Email not sent successfully"
+
+        return True
+
+  - description: "Send Email Including Top 10 Google News Headlines"
+    preconditions: "SendGrid is configured and Google News headlines are available."
+    postconditions: "The email sent includes the top 10 headlines."
+    function_to_run: !python/function |
+      def test_send_email_with_headlines(zerg_state=None):
+          """Test that the SendGrid connector sends an email with the top 10 Google News headlines."""
+          print("Sending email with top 10 Google News headlines")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          sendgrid_api_key = zerg_state.get("sendgrid_api_key").get("value")
+          sender_email = zerg_state.get("sender email").get("value")
+          recipient_email = zerg_state.get("recipient email").get("value")
+
+          assert sendgrid_api_key, "Missing sendgrid_api_key in agent state"
+          assert sender_email, "Missing sender email in agent state"
+          assert recipient_email, "Missing recipient email in agent state"
+
+          from connector import SendGridConnector
+
+          connector = SendGridConnector(
+            sendgrid_api_key=sendgrid_api_key,
+            sender_email=sender_email
+          )  
+
+          headlines = connector.get_top_google_headlines(count=10)
+
+          email_body = "Top 10 Headlines:\n" + "\n".join(f"{i+1}. {h}" for i, h in enumerate(headlines))
+          result = connector.send_email(
+              recipient=recipient_email,
+              subject="Top Headlines",
+              body=email_body
+          )
+          assert result is True, "Email with headlines not sent successfully"
+
+          return True
+
+  - description: "Send Email Including Current Weather for San Jose, CA"
+    preconditions: "SendGrid is configured and weather data for San Jose, CA is available."
+    postconditions: "The email sent includes the current weather for San Jose, CA."
+    function_to_run: !python/function |
+      def test_send_email_with_weather(zerg_state=None):
+          """Test that the SendGrid connector sends an email with current weather for San Jose, CA."""
+          print("Sending email with current weather for San Jose, CA")
+
+          assert zerg_state, "Zerg state required and not provided correctly to unit test"
+
+          sendgrid_api_key = zerg_state.get("sendgrid_api_key").get("value")
+          sender_email = zerg_state.get("sender email").get("value")
+          recipient_email = zerg_state.get("recipient email").get("value")
+          location = zerg_state.get("location").get("value")
+
+          assert sendgrid_api_key, "Missing sendgrid_api_key in agent state"
+          assert sender_email, "Missing sender email in agent state"
+          assert recipient_email, "Missing recipient email in agent state"
+          assert location, "Missing location in agent state"
+
+          from connector import SendGridConnector
+
+          connector = SendGridConnector(
+            sendgrid_api_key=sendgrid_api_key,
+            sender_email=sender_email
+          )  
+
+          weather = connector.get_current_weather(location=location)
+          email_body = f"Current weather in San Jose, CA:\n{weather}"
+
+          result = connector.send_email(
+              recipient=recipient_email,
+              subject=f"Current Weather in {location}",
+              body=email_body
+          )
+          assert result is True, "Email with weather data not sent successfully"
+
+          return True
+
+references: []
+
+configs:
+  - name: "sendgrid_api_key"
+    description: "SendGrid API key to be used for sending emails"
+    value: !env/var 
+  - name: "sender email"
+    description: "Sender email address for sending emails with SendGrid"
+    value: "idan@epochml.com"
+  - name: "recipient email"
+    description: "Recipient email for testing email sending"
+    value: "idanbeck@gmail.com"
+  - name: "location"
+    description: "To be used to retrieve weather at a particular location"
+    value: "San Jose, CA"
+# !# SendGrid Email Service
