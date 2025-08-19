@@ -1,8 +1,24 @@
 # core domain
 
-- !include hello/hello.yaml
-- !include headlines/headlines.yaml
-- !include github/github.yaml
-- !include openweathermap/openweathermap.yaml
-- !include pygame/pygame.yaml
-- !include sendgrid/sendgrid.yaml
+manifests:
+  - !include hello/hello.yaml
+  - !include headlines/headlines.yaml
+  - !include github/github.yaml
+  - !include openweathermap/openweathermap.yaml
+  - !include pygame/pygame.yaml
+  - !include sendgrid/sendgrid.yaml
+
+
+specs:
+  - description: |
+      Placeholder core domain specification
+    preconditions: |
+      no preconditions
+    postconditions: |
+      No postconditions
+
+# common configs to apply to all benchmarks 
+configs: 
+    - name: "domain_config"
+      description: "Placeholder domain config"
+      value: "This is just a placeholder please ignore"
