@@ -1,0 +1,5 @@
+# Rust
+
+manifests:
+  - !include metal_voxel_game/metal_voxel_game.yaml
+  

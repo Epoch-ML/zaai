@@ -1,0 +1,423 @@
+# voxel_game.yaml
+name: "metal_voxel_game"
+category: "Game Engine"
+description: "Generate a Metal-based Minecraft-like voxel game engine for macOS with terrain generation and first-person controls"
+
+stages:
+  - name: verify environment
+    type: before
+    description: Verifies macOS environment and Metal framework availability
+    preconditions: None
+    postconditions: Metal framework is available, Rust toolchain is installed with required dependencies
+    code_to_run: !rust/program stages/1-verify-environment.rs
+
+  - name: test triangle rendering
+    type: before
+    description: Validates Metal rendering pipeline with a simple triangle test
+    preconditions: Metal framework is available, Rust toolchain is installed
+    postconditions: Metal device initialized successfully, shaders compile, triangle renders to window for up to 100 seconds
+    code_to_run: !rust/program stages/2-test-triangle.rs
+
+specs:
+  # Core Rendering Specifications
+  - description: |
+      The game engine implements a Metal-based rendering pipeline capable of rendering voxel geometry
+      with proper depth testing, backface culling, and frustum culling
+    preconditions: |
+      Metal device and command queue initialized
+    postconditions: |
+      Render pipeline successfully renders voxel chunks;
+      Frame rate maintains minimum 30 FPS with 16x16x256 chunk size;
+      Proper depth buffer implementation prevents z-fighting;
+      Frustum culling reduces draw calls for off-screen geometry;
+
+  - description: |
+      Implement chunk-based voxel data structure with efficient memory layout for GPU access
+    preconditions: |
+      Basic Metal rendering pipeline established
+    postconditions: |
+      Voxel data stored in 16x16x256 chunks;
+      Each chunk maintains its own vertex buffer;
+      Chunk mesh generation uses greedy meshing algorithm;
+      Empty chunks are not allocated in memory;
+      Chunk updates trigger mesh regeneration;
+
+  - description: |
+      Terrain generation using Perlin noise produces varied and interesting landscapes
+    preconditions: |
+      Chunk system implemented and functional
+    postconditions: |
+      Terrain generates with hills, valleys, and caves;
+      Multiple octaves of noise create detail at different scales;
+      Height map generates values between y=0 and y=128;
+      Cave generation creates interconnected hollow spaces;
+      Biome system affects terrain characteristics;
+
+  - description: |
+      First-person camera system with smooth mouse look and WASD movement
+    preconditions: |
+      Rendering pipeline functional
+    postconditions: |
+      Mouse input controls camera rotation with adjustable sensitivity;
+      WASD keys move camera relative to look direction;
+      Space bar moves up, Shift moves down;
+      Camera maintains smooth 60 FPS update rate;
+      Mouse capture/release toggles with Escape key;
+
+  - description: |
+      Window management and event loop properly handle macOS events
+    preconditions: |
+      macOS application bundle structure exists
+    postconditions: |
+      Window creates at 1280x720 default resolution;
+      Window responds to resize events and updates viewport;
+      Close button properly terminates application;
+      Fullscreen toggle works with Cmd+F;
+      Focus/blur events pause/resume rendering;
+
+  - description: |
+      Shader system implements vertex and fragment shaders for voxel rendering
+    preconditions: |
+      Metal shader compiler available
+    postconditions: |
+      Vertex shader transforms voxel vertices to screen space;
+      Fragment shader applies basic lighting (ambient + directional);
+      Fog effect reduces visibility at distance;
+      Texture atlas support for multiple block types;
+      Shader hot-reload during development;
+
+  - description: |
+      Block type system supports multiple voxel materials with distinct properties
+    preconditions: |
+      Basic voxel rendering functional
+    postconditions: |
+      At least 8 block types defined (air, stone, dirt, grass, sand, water, wood, leaves);
+      Each block type has unique texture coordinates;
+      Transparent blocks (water, leaves) render in separate pass;
+      Block properties include solidity, transparency, and texture indices;
+
+  - description: |
+      Chunk loading system dynamically loads/unloads chunks based on player position
+    preconditions: |
+      Chunk system and terrain generation working
+    postconditions: |
+      Chunks within render distance (8 chunks) are loaded;
+      Chunks beyond render distance + 2 are unloaded;
+      Chunk loading happens on background thread;
+      No frame drops during chunk loading;
+      Circular loading pattern from player position;
+
+  - description: |
+      Basic collision detection prevents camera from passing through solid voxels
+    preconditions: |
+      Movement system and voxel data structure implemented
+    postconditions: |
+      AABB collision between camera and voxels;
+      Sliding collision response along walls;
+      Step-up for single block height differences;
+      No clipping through blocks at any speed;
+      Collision checks use spatial optimization;
+
+  - description: |
+      Performance monitoring system tracks and displays frame timing information
+    preconditions: |
+      Rendering loop established
+    postconditions: |
+      FPS counter displays in corner of screen;
+      Frame time histogram shows performance distribution;
+      Chunk update time tracked separately;
+      Memory usage for chunks displayed;
+      Debug overlay toggles with F3 key;
+
+tests:
+  - description: |
+      Verify Metal device initialization and basic triangle rendering
+    preconditions: |
+      Metal framework available on system
+    postconditions: |
+      Metal device successfully created;
+      Command queue established;
+      Simple triangle renders to screen;
+      No Metal validation errors in console;
+    function_to_run: !rust/file tests/1-test_metal_init.rs
+
+  - description: |
+      Test chunk mesh generation from voxel data
+    preconditions: |
+      Chunk data structure implemented
+    postconditions: |
+      Chunk filled with random voxels generates valid mesh;
+      Mesh contains correct number of vertices;
+      Greedy meshing reduces triangle count by >50%;
+      Empty chunk generates empty mesh;
+    function_to_run: !rust/file tests/2-test_chunk_meshing.rs
+
+  - description: |
+      Validate terrain generation produces expected heightmap
+    preconditions: |
+      Perlin noise implementation complete
+    postconditions: |
+      Terrain height varies between min and max values;
+      No floating islands in overworld;
+      Caves do not break surface except for entrances;
+      Adjacent chunks align perfectly at borders;
+    function_to_run: !rust/file tests/3-test_terrain_generation.rs
+
+  - description: |
+      Test camera movement and rotation mathematics
+    preconditions: |
+      Camera system implemented
+    postconditions: |
+      Forward vector calculated correctly from yaw/pitch;
+      Movement vectors orthogonal when expected;
+      Camera doesn't flip at pitch extremes;
+      Rotation follows right-hand rule;
+    function_to_run: !rust/file tests/4-test_camera_math.rs
+
+  - description: |
+      Verify input handling responds to all required keys
+    preconditions: |
+      Event loop and input system created
+    postconditions: |
+      All WASD keys register and update position;
+      Mouse movement updates camera rotation;
+      Escape key releases mouse capture;
+      No input lag or missed events;
+    function_to_run: !rust/file tests/5-test_input_handling.rs
+
+  - description: |
+      Test chunk loading/unloading based on distance
+    preconditions: |
+      Chunk management system implemented
+    postconditions: |
+      Chunks load when player approaches;
+      Chunks unload when player moves away;
+      Memory freed when chunks unload;
+      No chunks leak memory;
+    function_to_run: !rust/file tests/6-test_chunk_loading.rs
+
+  - description: |
+      Validate collision detection prevents block penetration
+    preconditions: |
+      Collision system implemented
+    postconditions: |
+      Camera cannot enter solid blocks;
+      High-speed movement doesn't tunnel through blocks;
+      Collision works for all block types marked solid;
+      Corner cases handled correctly;
+    function_to_run: !rust/file tests/7-test_collision.rs
+
+  - description: |
+      Performance benchmark maintains target framerate
+    preconditions: |
+      Complete game engine running
+    postconditions: |
+      Maintains 30+ FPS with 8 chunk render distance;
+      Chunk updates complete in <100ms;
+      Memory usage stays under 1GB;
+      No memory leaks over 5 minute session;
+    function_to_run: !rust/file tests/8-test_performance.rs
+
+references:
+  - description: "Application icon for macOS bundle"
+    file_path: "assets/app_icon.icns"
+    environment_path: "voxel_game/assets/app_icon.icns"
+    format: "icns"
+    required: true
+    read_only: false
+
+  - description: "Block texture atlas"
+    file_path: "assets/blocks.png"
+    environment_path: "voxel_game/assets/blocks.png"
+    format: "png"
+    required: true
+    read_only: false
+
+  - description: "Vertex shader source"
+    file_path: "shaders/voxel.vert.metal"
+    environment_path: "voxel_game/shaders/voxel.vert.metal"
+    format: "metal"
+    required: true
+    read_only: false
+
+  - description: "Fragment shader source"
+    file_path: "shaders/voxel.frag.metal"
+    environment_path: "voxel_game/shaders/voxel.frag.metal"
+    format: "metal"
+    required: true
+    read_only: false
+
+configs:
+  - name: "window_width"
+    description: "Default window width in pixels"
+    value: 1280
+    is_field: true
+    is_secret: false
+
+  - name: "window_height"
+    description: "Default window height in pixels"
+    value: 720
+    is_field: true
+    is_secret: false
+
+  - name: "chunk_size"
+    description: "Size of chunks in voxels (width, height, depth)"
+    value: [16, 256, 16]
+    is_field: true
+    is_secret: false
+
+  - name: "render_distance"
+    description: "Number of chunks to render in each direction"
+    value: 8
+    is_field: true
+    is_secret: false
+
+  - name: "mouse_sensitivity"
+    description: "Mouse look sensitivity multiplier"
+    value: 0.003
+    is_field: true
+    is_secret: false
+
+  - name: "movement_speed"
+    description: "Camera movement speed in blocks per second"
+    value: 5.0
+    is_field: true
+    is_secret: false
+
+  - name: "fov"
+    description: "Field of view in degrees"
+    value: 70.0
+    is_field: true
+    is_secret: false
+
+  - name: "block_types"
+    description: "Available block types in the game"
+    value: 
+      - air
+      - stone
+      - dirt
+      - grass
+      - sand
+      - water
+      - wood
+      - leaves
+      - bedrock
+      - coal_ore
+      - iron_ore
+      - gold_ore
+    is_field: true
+    is_secret: false
+
+  - name: "terrain_params"
+    description: "Parameters for terrain generation"
+    value:
+      octaves: 4
+      frequency: 0.01
+      amplitude: 30.0
+      persistence: 0.5
+      lacunarity: 2.0
+      sea_level: 64
+      max_height: 128
+    is_field: true
+    is_secret: false
+
+  - name: "dependencies"
+    description: "Rust crate dependencies"
+    value:
+      - "winit = \"0.29\""
+      - "metal = \"0.27\""
+      - "cocoa = \"0.25\""
+      - "objc = \"0.2\""
+      - "glam = \"0.24\""
+      - "noise = \"0.8\""
+      - "image = \"0.24\""
+      - "bytemuck = \"1.14\""
+      - "raw-window-handle = \"0.6\""
+    is_field: false
+    is_secret: false
+
+  - name: "performance_targets"
+    description: "Performance requirements for the engine"
+    value:
+      min_fps: 30
+      target_fps: 60
+      max_frame_time_ms: 33
+      max_chunk_update_ms: 100
+      max_memory_mb: 1024
+    is_field: true
+    is_secret: false
+
+  - name: "additional_considerations"
+    description: "Important implementation considerations"
+    value:
+      - "Use instanced rendering for identical blocks to reduce draw calls"
+      - "Implement greedy meshing to minimize triangle count"
+      - "Use morton encoding for chunk coordinates to improve cache locality"
+      - "Separate transparent and opaque geometry into different render passes"
+      - "Implement level-of-detail (LOD) system for distant chunks"
+      - "Use compute shaders for parallel chunk mesh generation"
+      - "Implement occlusion culling using hierarchical z-buffer"
+      - "Cache chunk meshes to disk to speed up subsequent loads"
+      - "Use SIMD operations for noise generation and mesh building"
+      - "Implement temporal upsampling for better performance"
+      - "Profile using Instruments.app on macOS for optimization"
+      - "Handle retina displays properly with backing scale factor"
+      - "Support both Apple Silicon and Intel Mac architectures"
+
+  - name: "Architecture"
+    description: "the architecture of the game to be implemented"
+    value:
+      modules:
+        - name: "core"
+          description: "Core engine systems"
+          components:
+            - filename: app.rs           
+              description: Application lifecycle and window management
+            - filename: renderer.rs      
+              description: Metal rendering pipeline
+            - filename: camera.rs        
+              description: First-person camera implementation
+            - filenmae: input.rs         
+              description: Keyboard and mouse input handling
+
+        - name: "world"
+          description: "World and voxel management"
+          components:
+            - filenmae: chunk.rs         
+              description: Chunk data structure and operations
+            - filename: world.rs         
+              description: World management and chunk loading
+            - filename: terrain.rs       
+              description: Terrain generation algorithms
+            - filename: block.rs         
+              description: Block type definitions and properties
+
+        - name: "render"
+          description: "Rendering subsystems"
+          components:
+            - filename: mesh.rs          
+              description: Mesh generation and optimization
+            - filename: shader.rs        
+              description: Shader management and compilation
+            - filename: texture.rs       
+              description: Texture atlas and material handling
+            - filename: pipeline.rs      
+              description: Metal render pipeline states
+
+        - name: "physics"
+          description: "Physics and collision"
+          components:
+            - filename: collision.rs     
+              description: AABB collision detection
+            - filename: movement.rs      
+              description: Player movement and physics
+
+        - name: "utils"
+          description: "Utility systems"
+          components:
+            - filename: math.rs          
+              description: Mathematical utilities and helpers
+            - filename: noise.rs         
+              description: Noise generation for terrain
+            - filename: profiler.rs      
+              description: Performance profiling utilities
