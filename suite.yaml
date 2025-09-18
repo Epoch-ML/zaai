@@ -29,11 +29,11 @@ tests:
           """Placeholder test that always return True"""
           
           if zerg_state:
-            zerg_benchmark_name = zerg_state.get("benchmark name").get("value")
-            print(f"Placeholder Unit Test for benchmark name: {zerg_benchmark_name}")
+            zerg_considerations = zerg_state.get("considerations").get("value")
+            print(f"Placeholder Zerg considerations: {zerg_considerations}")
 
           else:
-            print(f"NO ZERG STATE PROVIDED - Placeholder Unit Test for benchmark")
+            print(f"NO ZERG STATE PROVIDED - Placeholder Unit Test for list of considerations of this suite")
 
           return True
 
