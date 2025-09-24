@@ -9,12 +9,19 @@ specs: []
 
 tests: []
 
-references: []
-  # - description: "Simple target glob"
-  #   file_path: "data/databricks/**"
-  #   environment_path: "data/databricks"
-  #   format: "glob"
-  #   required: true
-  #   read_only: true
+references:
+  - description: "Simple test file"
+    file_path: "data/test.txt"
+    environment_path: "text.txt"
+    format: "txt"
+    required: true
+    read_only: true
+
+  - description: "Simple target glob"
+    file_path: "data/databricks/**/*"
+    environment_path: "data/databricks"
+    format: "glob"
+    required: true
+    read_only: true
 
 configs: []

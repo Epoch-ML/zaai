@@ -38,20 +38,20 @@ tests:
           return True
 
 # common references to apply to all benchmarks 
-references: []
-  # - description: "example JPG"
-  #   file_path: "searanch_jpg.jpg"
-  #   workspace_path: "searanch_jpg.jpg"
-  #   format: "jpg"
-  #   required: true
-  #   read_only: true
+references: 
+  - description: "example JPG"
+    file_path: "searanch_jpg.jpg"
+    workspace_path: "searanch_jpg.jpg"
+    format: "jpg"
+    required: true
+    read_only: true
 
-  # - description: "example environment text"
-  #   file_path: "text.txt"
-  #   workspace_path: "text.txt"
-  #   format: "txt"
-  #   required: true
-  #   read_only: true
+  - description: "example environment text"
+    file_path: "text.txt"
+    workspace_path: "text.txt"
+    format: "txt"
+    required: true
+    read_only: true
 
 
 # common configs to apply to all benchmarks 
