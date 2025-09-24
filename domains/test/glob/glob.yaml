@@ -1,0 +1,20 @@
+# A simple git env import
+
+name: "glob"
+category: "Zerg Tests"
+description: |
+  Test to see that we can ingress a glob pattern correctly
+
+specs: []
+
+tests: []
+
+references: []
+  # - description: "Simple target glob"
+  #   file_path: "data/databricks/**"
+  #   environment_path: "data/databricks"
+  #   format: "glob"
+  #   required: true
+  #   read_only: true
+
+configs: []

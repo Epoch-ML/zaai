@@ -1,5 +1,8 @@
 # Test Environment File Handlers
 
-- !include env.yaml
-- !include j2_template.yaml
+manifests:
+#- !include env/env.yaml
+#- !include templates/j2_template.yaml
+#- !include git_env/git_env.yaml
+- !include glob/glob.yaml
 
