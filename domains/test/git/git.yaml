@@ -1,0 +1,31 @@
+# A simple git import
+
+name: "git"
+category: "Zerg Tests"
+description: |
+  Test to see that we can ingress a complete git/github repository correctly
+
+specs: []
+
+tests: []
+
+references: 
+  - description: "Python dot-env for simple testing (small 3K SLOC repository) - environment"
+    git_url: "https://github.com/theskumar/python-dotenv"
+    environment_path: "repos/python-dotenv"
+    format: "git"
+    git_config:
+      ref: "main"  
+    required: true
+    read_only: true
+
+  - description: "Python dot-env for simple testing (small 3K SLOC repository) - workspace"
+    git_url: "https://github.com/theskumar/python-dotenv"
+    workspace_path: "repos/python-dotenv"
+    format: "git"
+    git_config:
+      ref: "main"  
+    required: true
+    read_only: true
+
+configs: []
