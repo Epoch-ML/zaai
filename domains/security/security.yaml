@@ -1,0 +1,23 @@
+# Security Domain
+
+manifests:
+  - !include django-cve-poc/django-cve-poc.yaml
+
+specs:
+  - description: |
+      Security domain provides vulnerability detection and remediation capabilities
+    preconditions: |
+      Target codebase with known vulnerabilities
+    postconditions: |
+      Vulnerabilities detected, analyzed, and patched with verification
+
+references: []
+
+configs: 
+    - name: "security_timeout"
+      description: "Timeout for security analysis operations in seconds"
+      value: 120
+
+    - name: "vulnerability_threshold"
+      description: "Minimum percentage of vulnerabilities that must be detected and patched"
+      value: 0.7
