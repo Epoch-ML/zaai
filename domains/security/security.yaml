@@ -5,11 +5,15 @@ manifests:
 
 specs:
   - description: |
-      Security domain provides static code analysis for vulnerability detection and remediation
+      Security domain provides static code analysis for vulnerability detection and remediation.
+      Agent performs comprehensive static analysis on workspace PyGoat files to identify OWASP Top 10 vulnerabilities.
+      Agent then recreates all vulnerable files in the agent environment with security fixes applied.
+      All fixed files are stored in the environment at the same relative paths as the workspace for consistency and completeness.
     preconditions: |
-      Target codebase with known security vulnerabilities in source code
+      Target codebase (PyGoat) cloned to workspace with known security vulnerabilities in source code
     postconditions: |
-      Vulnerabilities detected through static analysis, code patterns analyzed, and security patches applied to source files
+      Vulnerabilities detected in workspace PyGoat through static analysis,
+      vulnerable files recreated in environment with security fixes applied and consistent path structure
 
 references: []
 
@@ -23,5 +27,5 @@ configs:
       value: 0.8
 
     - name: "code_remediation_threshold"
-      description: "Minimum percentage of detected vulnerabilities that must be remediated in source code"
+      description: "Minimum percentage of detected vulnerabilities that must be remediated by recreating fixed files in environment"
       value: 0.7
