@@ -2,6 +2,7 @@
 
 manifests:
   - !include pygoat-cve-poc/pygoat-cve-poc.yaml
+  - !include djangogoat-cve-poc/djangogoat-cve-poc.yaml
 
 specs:
   - description: |
