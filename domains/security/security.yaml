@@ -1,20 +1,22 @@
 # Security Domain - Static Code Analysis
 
 manifests:
-  - !include pygoat-cve-poc/pygoat-cve-poc.yaml
-  - !include djangogoat-cve-poc/djangogoat-cve-poc.yaml
+  - !include djangogoat/djangogoat.yaml
 
 specs:
   - description: |
-      Security domain provides static code analysis for vulnerability detection and remediation.
-      Agent performs comprehensive static analysis on workspace PyGoat files to identify OWASP Top 10 vulnerabilities.
-      Agent then recreates all vulnerable files in the agent environment with security fixes applied.
-      All fixed files are stored in the environment at the same relative paths as the workspace for consistency and completeness.
+      Provides static code analysis for vulnerability detection and automatic remediation in software projects.
     preconditions: |
-      Target codebase (PyGoat) cloned to workspace with known security vulnerabilities in source code
+      Target codebase is available in the workspace with potential security vulnerabilities.
     postconditions: |
-      Vulnerabilities detected in workspace PyGoat through static analysis,
-      vulnerable files recreated in environment with security fixes applied and consistent path structure
+      Vulnerabilities are detected in the source code using static analysis techniques and reference to industry standards such as the OWASP Top 10. All identified vulnerable files are modified in place with appropriate security fixes applied, and their original directory structure is preserved for consistency and completeness.
+
+  - description: |
+      Maintain consistency with original codebase - never deviate significantly from workspace version
+    preconditions: |
+      Agent is fixing security vulnerabilities in environment code
+    postconditions: |
+      All changes are minimal and focused on fixing vulnerabilities only - agent does not refactor, restructure, or significantly alter the original code logic or architecture. Changes stay as close as possible to the workspace version while addressing security issues
 
 references: []
 

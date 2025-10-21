@@ -1,5 +1,5 @@
 # DjangoGoat Static Security Analysis - OWASP Top 10 Code Remediation
-name: "djangogoat-cve-poc"
+name: "djangogoat"
 category: "Static Code Analysis"
 description: |
   Static code security analysis suite for DjangoGoat intentionally vulnerable Django application.
@@ -48,6 +48,14 @@ specs:
     preconditions: "Codebase makes external HTTP requests"
     postconditions: "SSRF vulnerabilities are fixed - all external requests validate target URLs"
 
+  - description: "Fix cookie HTTPOnly flag security issue"
+    preconditions: "DjangoGoat application uses cookies without HTTPOnly flag enabled"
+    postconditions: "All cookies are configured with HTTPOnly flag enabled in Django settings to prevent XSS cookie theft"
+
+  - description: "Remove server version information leakage"
+    preconditions: "Server exposes version information via Server HTTP response header"
+    postconditions: "Server header is masked or removed to prevent information disclosure about server version and technology stack"
+
   - description: "Modify source code in-place with pinpointed changes"
     preconditions: "Codebase contains vulnerable code"
     postconditions: "Source files are edited directly with pinpointed changes - may create essential config files (.env, etc.) but no duplicate source files or helper/fix scripts. The only allowed helper script is the one to connect to the Zerg tests, namely 'security_interface.py', all tests on the top level folder and the security_changelog.md file in the root of the workspace."
@@ -55,10 +63,6 @@ specs:
   - description: "Handle Django migrations properly - do not modify existing migration files"
     preconditions: "Codebase contains Django migration files that need security-related schema changes"
     postconditions: "New migration files are created following Django naming conventions (numbered sequentially) that fix security issues - existing migration files in migrations/ directories are never modified, only new ones are created"
-
-  - description: "Maintain consistency with original codebase - never deviate significantly from workspace version"
-    preconditions: "Agent is fixing security vulnerabilities in environment code"
-    postconditions: "All changes are minimal and focused on fixing vulnerabilities only - agent does not refactor, restructure, or significantly alter the original code logic or architecture. Changes stay as close as possible to the workspace version while addressing security issues"
 
   - description: "Never modify the features/ folder"
     preconditions: "Environment contains a features/ directory with test scenarios or documentation"
@@ -119,9 +123,19 @@ tests:
     postconditions: "No SSRF vulnerabilities detected - all external requests validated"
     function_to_run: !python/file tests/test_ssrf.py
 
+  - description: "Verify HTTPOnly flag is enabled for all cookies"
+    preconditions: "Environment contains DjangoGoat code with secure cookie configuration"
+    postconditions: "All cookies are configured with HTTPOnly flag enabled to prevent XSS cookie theft"
+    function_to_run: !python/file tests/test_cookie_httponly.py
+
+  - description: "Verify server version information is not leaked"
+    preconditions: "Environment contains DjangoGoat code with secure HTTP headers configuration"
+    postconditions: "Server HTTP response header does not expose version information or is properly masked"
+    function_to_run: !python/file tests/test_server_header.py
+
 references:
   - description: "Intentionally vulnerable Django application repository"
-    git_url: "https://github.com/red-and-black/DjangoGoat"
+    git_url: "https://github.com/MeteoritoAlpha-Zerg/DjangoGoat"
     workspace_path: "djangogoat"
     format: "git"
     git_config:
@@ -130,7 +144,7 @@ references:
     read_only: true
 
   - description: "Intentionally vulnerable Django application repository"
-    git_url: "https://github.com/red-and-black/DjangoGoat"
+    git_url: "https://github.com/MeteoritoAlpha-Zerg/DjangoGoat"
     environment_path: "djangogoat"
     format: "git"
     git_config:
