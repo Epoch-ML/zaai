@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""
+A08: Data Integrity Failures Vulnerability Test
+Verifies that input validation has been properly implemented in environment files
+"""
+
+import re
+from security_interface import get_environment_files
+
+
+def test_validation_remediation(zerg_state=None):
+    """
+    Test that data integrity failures have been fixed in environment files.
+    Checks for proper form validation and input sanitization.
+    Excludes safe patterns like .get() and helper functions.
+    """
+    try:
+        assert zerg_state, "Data integrity failures test requires valid zerg_state"
+        
+        # Get environment files from interface
+        env_files = get_environment_files()
+        
+        if not env_files:
+            print("✗ Data Integrity Failures: No environment files found")
+            return False
+        
+        vulnerable_patterns = []
+        secure_patterns = []
+        files_analyzed = 0
+        
+        for rel_path, content in env_files.items():
+            if rel_path.startswith("djangogoat") and rel_path.endswith(".py"):
+                try:
+                    files_analyzed += 1
+                    
+                    # Safe patterns: proper validation and sanitization
+                    has_form_validation = "forms.Form" in content or "Serializer" in content or ".is_valid()" in content
+                    has_sanitization = "strip()" in content or "escape" in content or "slugify" in content
+                    has_safe_param_usage = ".get(" in content or "safe_param" in content
+                    
+                    # UNSAFE pattern: direct indexing WITHOUT safe wrapper
+                    # Must have direct indexing AND not be inside a safe helper function
+                    has_direct_unsafe_access = False
+                    if re.search(r"request\.(POST|GET)\s*\[", content):
+                        # Check if it's direct indexing (not in a .get() call)
+                        # and not in a helper function definition
+                        if not ("def " in content and "safe_param" in content) and not has_safe_param_usage:
+                            has_direct_unsafe_access = True
+                    
+                    if has_direct_unsafe_access and not has_safe_param_usage:
+                        vulnerable_patterns.append(rel_path)
+                    elif has_form_validation or has_sanitization or has_safe_param_usage:
+                        secure_patterns.append(rel_path)
+                        
+                except Exception as e:
+                    print(f"  Warning: Could not analyze {rel_path}: {e}")
+        
+        if not vulnerable_patterns:
+            if secure_patterns:
+                print(f"✓ Data Integrity Failures: Analyzed {files_analyzed} environment files, found {len(secure_patterns)} with proper validation")
+            else:
+                print(f"✓ Data Integrity Failures: Analyzed {files_analyzed} environment files - no data integrity failures detected")
+            return True
+        else:
+            print(f"✗ Data Integrity Failures: Found {len(vulnerable_patterns)} environment files with validation issues")
+            for issue in vulnerable_patterns[:3]:
+                print(f"  - {issue}")
+            return False
+            
+    except AssertionError as e:
+        print(f"✗ Data Integrity Failures: {e}")
+        return False
+    except Exception as e:
+        print(f"✗ Data Integrity Failures: Unexpected error - {e}")
+        import traceback
+        traceback.print_exc()
+        return False

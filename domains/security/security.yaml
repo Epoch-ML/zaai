@@ -1,0 +1,34 @@
+# Security Domain - Static Code Analysis
+
+manifests:
+  - !include djangogoat/djangogoat.yaml
+
+specs:
+  - description: |
+      Provides static code analysis for vulnerability detection and automatic remediation in software projects.
+    preconditions: |
+      Target codebase is available in the workspace with potential security vulnerabilities.
+    postconditions: |
+      Vulnerabilities are detected in the source code using static analysis techniques and reference to industry standards such as the OWASP Top 10. All identified vulnerable files are modified in place with appropriate security fixes applied, and their original directory structure is preserved for consistency and completeness.
+
+  - description: |
+      Maintain consistency with original codebase - never deviate significantly from workspace version
+    preconditions: |
+      Agent is fixing security vulnerabilities in environment code
+    postconditions: |
+      All changes are minimal and focused on fixing vulnerabilities only - agent does not refactor, restructure, or significantly alter the original code logic or architecture. Changes stay as close as possible to the workspace version while addressing security issues
+
+references: []
+
+configs: 
+    - name: "static_analysis_timeout"
+      description: "Timeout for static analysis operations in seconds"
+      value: 120
+
+    - name: "vulnerability_detection_threshold"
+      description: "Minimum percentage of vulnerabilities that must be detected through static analysis"
+      value: 0.8
+
+    - name: "code_remediation_threshold"
+      description: "Minimum percentage of detected vulnerabilities that must be remediated by recreating fixed files in environment"
+      value: 0.7

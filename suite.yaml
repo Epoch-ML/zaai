@@ -6,6 +6,7 @@ domains:
   cloud:           !include domains/cloud/cloud.yaml
   test:            !include domains/test/test.yaml
   rust:            !include domains/rust/rust.yaml
+  security:        !include domains/security/security.yaml
 
 # common
 

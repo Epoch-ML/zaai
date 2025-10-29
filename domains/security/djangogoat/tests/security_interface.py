@@ -1,0 +1,31 @@
+"""
+Security Interface
+Provides standardized access to environment files for reading and analyzing
+"""
+
+from pathlib import Path
+from typing import Dict
+
+
+def get_environment_files() -> Dict[str, str]:
+    """
+    Get all files from the environment repo directory.
+    
+    Returns:
+        Dict[str, str]: Dictionary mapping file paths to their content
+    """
+    env_files = {}
+    try:
+        env_path = Path("djangogoat")
+        if env_path.exists():
+            for file_path in env_path.rglob("*"):
+                if file_path.is_file():
+                    try:
+                        rel_path = str(file_path.relative_to(env_path.parent))
+                        content = file_path.read_text(errors='ignore')
+                        env_files[rel_path] = content
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    return env_files
