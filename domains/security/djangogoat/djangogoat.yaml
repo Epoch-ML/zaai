@@ -150,6 +150,7 @@ references:
       ref: "broken"
       exclude_paths:
         - "features"
+        - "djangogoat/static"
     required: true
     read_only: false
 
