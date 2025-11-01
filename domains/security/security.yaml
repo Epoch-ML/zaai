@@ -20,15 +20,4 @@ specs:
 
 references: []
 
-configs: 
-    - name: "static_analysis_timeout"
-      description: "Timeout for static analysis operations in seconds"
-      value: 120
-
-    - name: "vulnerability_detection_threshold"
-      description: "Minimum percentage of vulnerabilities that must be detected through static analysis"
-      value: 0.8
-
-    - name: "code_remediation_threshold"
-      description: "Minimum percentage of detected vulnerabilities that must be remediated by recreating fixed files in environment"
-      value: 0.7
+configs: []
