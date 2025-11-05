@@ -10,9 +10,9 @@ description: |
 stages:
   - name: install system dependencies
     type: before
-    description: Install Poetry, Geckodriver, Firefox, and OWASP ZAP
+    description: Install Python 3.10, Poetry, Geckodriver, Firefox, and OWASP ZAP
     preconditions: System package managers are available
-    postconditions: Poetry, Geckodriver, Firefox, and ZAP are installed and available in PATH
+    postconditions: Python 3.10, Poetry, Geckodriver, Firefox, and ZAP are installed and available in PATH
     code_to_run: !python/file stages/install_system_dependencies.py
 
   - name: install dependencies
