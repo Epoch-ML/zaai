@@ -7,28 +7,6 @@ description: |
   then fixes issues by directly editing environment files. All security fixes are verified through
   automated testing of the modified code patterns.
 
-stages:
-  - name: install system dependencies
-    type: before
-    description: Install Python 3.10, Poetry, Geckodriver, Firefox, and OWASP ZAP
-    preconditions: System package managers are available
-    postconditions: Python 3.10, Poetry, Geckodriver, Firefox, and ZAP are installed and available in PATH
-    code_to_run: !python/file stages/install_system_dependencies.py
-
-  - name: install dependencies
-    type: before
-    description: Install DjangoGoat dependencies using Poetry and cache environment
-    preconditions: Poetry is available in the environment
-    postconditions: All DjangoGoat dependencies are installed and environment cached
-    code_to_run: !python/file stages/install_dependencies.py
-
-  - name: verify setup
-    type: before
-    description: Verify DjangoGoat setup by running behave tests in dry-run mode
-    preconditions: All dependencies are installed
-    postconditions: Behave tests can be discovered and executed
-    code_to_run: !python/file stages/verify_setup.py
-
 specs:
   - description: "Detect and fix SQL injection vulnerabilities"
     preconditions: "Codebase contains SQL query construction code"
