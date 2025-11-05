@@ -534,6 +534,14 @@ def test_full_security_scan(zerg_state=None):
         env_vars['DJANGO_SETTINGS_MODULE'] = 'djangogoat.settings'
         env_vars['DJANGO_SECRET_KEY'] = 'insecure-behave-secret-key'
         
+        # Ensure ZAP_PATH is in environment for behave tests
+        env_vars['ZAP_PATH'] = sys_paths.get('zap', '')
+        
+        # Debug: verify critical paths are set
+        print(f"ZAP_PATH={env_vars.get('ZAP_PATH', 'NOT SET')}")
+        print(f"Poetry in PATH: {poetry_path in env_vars.get('PATH', '')}")
+        print(f"ZAP dir in PATH: {os.path.dirname(sys_paths.get('zap', '')) in env_vars.get('PATH', '')}")
+        
         # Check if server is already running - kill it for clean slate
         if is_port_in_use(3572):
             print("Killing existing server on port 3572...")
@@ -581,6 +589,14 @@ def test_full_security_scan(zerg_state=None):
         print("✓ Django server started on port 3572")
         server_was_running = False  # We started it, so we'll shut it down
         
+        # Verify ZAP is accessible before running behave
+        zap_path = env_vars.get('ZAP_PATH', '')
+        print(f"\nVerifying ZAP setup:")
+        print(f"  ZAP_PATH env var: {zap_path}")
+        print(f"  ZAP exists: {os.path.exists(zap_path) if zap_path else 'N/A'}")
+        print(f"  ZAP executable: {os.access(zap_path, os.X_OK) if zap_path and os.path.exists(zap_path) else 'N/A'}")
+        
+        print("\nRunning behave tests...")
         try:
             result = subprocess.run(
                 [poetry_path, 'run', 'behave'],
