@@ -22,6 +22,13 @@ stages:
     postconditions: All DjangoGoat dependencies are installed and environment cached
     code_to_run: !python/file stages/install_dependencies.py
 
+  - name: verify setup
+    type: before
+    description: Verify DjangoGoat setup by running behave tests in dry-run mode
+    preconditions: All dependencies are installed
+    postconditions: Behave tests can be discovered and executed
+    code_to_run: !python/file stages/verify_setup.py
+
 specs:
   - description: "Detect and fix SQL injection vulnerabilities"
     preconditions: "Codebase contains SQL query construction code"
