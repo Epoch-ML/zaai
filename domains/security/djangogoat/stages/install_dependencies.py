@@ -42,16 +42,6 @@ def run():
         try:
             os.chdir(project_dir)
             
-            # # Set Poetry to Python 3.10
-            # print("Setting Poetry environment to Python 3.10...")
-            # result = subprocess.run(
-            #     [poetry_path, 'env', 'use', 'python3.10'],
-            #     capture_output=True,
-            #     timeout=30
-            # )
-            # assert result.returncode == 0, f"Failed to set Poetry to Python 3.10: {result.stderr.decode() if result.stderr else 'Unknown error'}"
-            # print("✓ Python 3.10 environment configured")
-            
             # Install dependencies
             print("Installing dependencies with Poetry (this may take a few minutes)...")
             result = subprocess.run(

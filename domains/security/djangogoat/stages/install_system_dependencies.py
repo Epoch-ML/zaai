@@ -64,33 +64,78 @@ def run():
     elif system == 'linux':
         # Linux installation
         if not has_python310:
-            print("Installing Python 3.10 from deadsnakes PPA...")
+            print("Installing Python 3.10 via pyenv...")
             
-            # Add deadsnakes PPA which provides prebuilt Python packages
-            print("Adding deadsnakes PPA...")
-            subprocess.run(['apt-get', 'update'], capture_output=True, timeout=300)
-            subprocess.run(['apt-get', 'install', '-y', 'software-properties-common'], capture_output=True, timeout=300)
-            subprocess.run(['add-apt-repository', '-y', 'ppa:deadsnakes/ppa'], capture_output=True, timeout=300)
-            subprocess.run(['apt-get', 'update'], capture_output=True, timeout=300)
+            # Check if pyenv is installed
+            pyenv_root = os.path.expanduser('~/.pyenv')
+            pyenv_bin = os.path.join(pyenv_root, 'bin', 'pyenv')
             
-            # Install python3.10 (minimal, no extra packages to avoid conflicts)
-            print("Installing python3.10...")
-            result = subprocess.run(['apt-get', 'install', '-y', 'python3.10-minimal'], capture_output=True, timeout=600)
-            assert result.returncode == 0, f"Failed to install Python 3.10: {result.stderr.decode() if result.stderr else 'Unknown error'}"
+            if not os.path.exists(pyenv_bin):
+                print("Installing pyenv...")
+                # Install dependencies for building Python
+                print("Installing build dependencies...")
+                subprocess.run(['apt-get', 'update'], capture_output=True, timeout=300)
+                subprocess.run([
+                    'apt-get', 'install', '-y',
+                    'build-essential', 'libssl-dev', 'zlib1g-dev',
+                    'libbz2-dev', 'libreadline-dev', 'libsqlite3-dev',
+                    'curl', 'libncursesw5-dev', 'xz-utils', 'tk-dev',
+                    'libxml2-dev', 'libxmlsec1-dev', 'libffi-dev', 'liblzma-dev', 'git'
+                ], capture_output=True, timeout=600)
+                
+                # Install pyenv using official installer
+                print("Downloading and installing pyenv...")
+                result = subprocess.run([
+                    'curl', '-L',
+                    'https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer',
+                    '-o', 'pyenv-installer.sh'
+                ], capture_output=True, timeout=300)
+                assert result.returncode == 0, "Failed to download pyenv installer"
+                
+                result = subprocess.run(['bash', 'pyenv-installer.sh'], capture_output=True, timeout=300)
+                subprocess.run(['rm', '-f', 'pyenv-installer.sh'], capture_output=True, timeout=10)
+                assert result.returncode == 0, "Failed to install pyenv"
+                print("✓ pyenv installed")
             
-            # Verify it's accessible
-            python310_path = shutil.which('python3.10')
-            if not python310_path:
-                # Manually check /usr/bin
-                if os.path.exists('/usr/bin/python3.10'):
-                    python310_path = '/usr/bin/python3.10'
-                    # Ensure /usr/bin is in PATH
-                    if '/usr/bin' not in os.environ['PATH']:
-                        os.environ['PATH'] = f"/usr/bin:{os.environ['PATH']}"
-                        print("Added /usr/bin to PATH")
+            # Add pyenv to PATH and set environment
+            pyenv_bin_dir = os.path.join(pyenv_root, 'bin')
+            pyenv_shims = os.path.join(pyenv_root, 'shims')
             
-            assert python310_path is not None, "Python 3.10 was installed but cannot be found"
-            print(f"✓ Python 3.10 installed at: {python310_path}")
+            if pyenv_bin_dir not in os.environ['PATH']:
+                os.environ['PATH'] = f"{pyenv_shims}:{pyenv_bin_dir}:{os.environ['PATH']}"
+                print(f"Added pyenv to PATH")
+            os.environ['PYENV_ROOT'] = pyenv_root
+            
+            # Install Python 3.10 with pyenv
+            print("Installing Python 3.10.13 with pyenv (this may take several minutes)...")
+            result = subprocess.run(
+                [pyenv_bin, 'install', '-s', '3.10.13'],
+                capture_output=True,
+                text=True,
+                timeout=1800,  # 30 minutes for compilation
+                env=os.environ
+            )
+            assert result.returncode == 0, f"Failed to install Python 3.10 with pyenv: {result.stderr}"
+            
+            # Set Python 3.10 as a global version
+            subprocess.run([pyenv_bin, 'global', '3.10.13'], capture_output=True, env=os.environ)
+            subprocess.run([pyenv_bin, 'rehash'], capture_output=True, env=os.environ)
+            
+            # Create python3.10 symlink in ~/.local/bin for consistent access
+            local_bin = os.path.expanduser('~/.local/bin')
+            os.makedirs(local_bin, exist_ok=True)
+            python310_symlink = os.path.join(local_bin, 'python3.10')
+            python310_actual = os.path.join(pyenv_root, 'versions', '3.10.13', 'bin', 'python3.10')
+            
+            if os.path.exists(python310_actual):
+                if os.path.islink(python310_symlink) or os.path.exists(python310_symlink):
+                    os.remove(python310_symlink)
+                os.symlink(python310_actual, python310_symlink)
+                if local_bin not in os.environ['PATH']:
+                    os.environ['PATH'] = f"{local_bin}:{os.environ['PATH']}"
+                print(f"✓ Python 3.10 installed at: {python310_symlink} -> {python310_actual}")
+            else:
+                assert False, f"Python 3.10 binary not found at {python310_actual}"
         
         if not has_poetry:
             print("Installing Poetry using official installer...")
