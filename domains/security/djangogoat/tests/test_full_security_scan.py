@@ -529,27 +529,52 @@ def test_full_security_scan(zerg_state=None):
         env_vars['DJANGO_SETTINGS_MODULE'] = 'djangogoat.settings'
         env_vars['DJANGO_SECRET_KEY'] = 'insecure-behave-secret-key'
         
-        # Check if server is already running
+        # Check if server is already running - kill it for clean slate
         if is_port_in_use(3572):
-            server_was_running = True
-        else:
-            # Start Django development server
-            server_process = subprocess.Popen(
-                ['poetry', 'run', 'python', 'manage.py', 'runserver', '127.0.0.1:3572', '--noreload'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=env_vars
-            )
-            
-            # Wait for server to be ready
-            if wait_for_server(port=3572, timeout=30):
-                server_was_running = False
-            else:
-                print("✗ Server failed to start")
-                if server_process:
-                    server_process.terminate()
-                return False
+            print("Killing existing server on port 3572...")
+            try:
+                # Try to kill using lsof and kill command
+                result = subprocess.run(
+                    ['lsof', '-t', '-i', ':3572'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    pids = result.stdout.strip().split('\n')
+                    for pid in pids:
+                        subprocess.run(['kill', '-9', pid], capture_output=True, timeout=5)
+                    print(f"✓ Killed {len(pids)} process(es) on port 3572")
+                    time.sleep(2)  # Give OS time to free the port
+            except Exception as e:
+                print(f"⚠ Could not kill existing server: {e}")
+        
+        # Start Django development server with clean slate
+        print("Starting Django server on port 3572...")
+        server_process = subprocess.Popen(
+            ['poetry', 'run', 'python', 'manage.py', 'runserver', '127.0.0.1:3572', '--noreload'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env_vars
+        )
+        
+        # Wait for server to be ready
+        if not wait_for_server(port=3572, timeout=30):
+            print("✗ Server failed to start")
+            if server_process:
+                stdout, stderr = '', ''
+                try:
+                    stdout, stderr = server_process.communicate(timeout=2)
+                except:
+                    pass
+                if stderr:
+                    print(f"Server error: {stderr[:500]}")
+                server_process.terminate()
+            return False
+        
+        print("✓ Django server started on port 3572")
+        server_was_running = False  # We started it, so we'll shut it down
         
         try:
             result = poetry_run_with_setup(
