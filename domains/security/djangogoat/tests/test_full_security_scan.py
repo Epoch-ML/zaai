@@ -487,7 +487,12 @@ def test_full_security_scan(zerg_state=None):
         
         output = result.stdout + result.stderr
         
-        # Suppress verbose output - we'll show only the summary
+        # Print full behave output
+        print("\n" + "="*70)
+        print("BEHAVE OUTPUT")
+        print("="*70)
+        print(output)
+        print("="*70 + "\n")
         
         # Check if behave actually ran
         if 'Command not found: behave' in output or 'command not found' in output.lower():
