@@ -180,6 +180,12 @@ def run():
             print("Updating package lists...")
             subprocess.run(['apt-get', 'update'], capture_output=True, timeout=300)
             
+            # Install xvfb for headless display support
+            print("Installing Xvfb (X virtual framebuffer) for headless display...")
+            result = subprocess.run(['apt-get', 'install', '-y', 'xvfb'], capture_output=True, timeout=300)
+            if result.returncode == 0:
+                print("✓ Xvfb installed")
+            
             print("Trying firefox-esr...")
             result = subprocess.run(['apt-get', 'install', '-y', 'firefox-esr'], capture_output=True, timeout=600)
             if result.returncode != 0:
@@ -222,6 +228,8 @@ def run():
             if os.path.islink(zap_link) or os.path.exists(zap_link):
                 os.remove(zap_link)
             os.symlink(zap_script, zap_link)
+
+            os.environ['ZAP_PATH'] = zap_link
             print("✓ OWASP ZAP installed")
     
     print("\n✓ All system dependencies installed successfully!")
