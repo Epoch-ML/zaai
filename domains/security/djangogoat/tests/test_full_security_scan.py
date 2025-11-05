@@ -107,15 +107,44 @@ def test_full_security_scan(zerg_state=None):
             subprocess.run(['tar', '-xzf', '/tmp/geckodriver.tar.gz', '-C', '/usr/local/bin'], capture_output=True, timeout=60)
             os.chmod('/usr/local/bin/geckodriver', 0o755)
         
-        # ZAP to /usr/local/bin
-        if not shutil.which('zap.sh'):
+        # ZAP - always reinstall if /opt/zap/zap.sh doesn't exist
+        zap_script = '/opt/zap/zap.sh'
+        if not os.path.exists(zap_script):
+            print("Installing ZAP...")
+            # Clean up any old installation
+            subprocess.run(['rm', '-rf', '/opt/zap'], capture_output=True, timeout=10)
+            subprocess.run(['rm', '-f', '/usr/local/bin/zap.sh'], capture_output=True, timeout=10)
+            
+            subprocess.run(['mkdir', '-p', '/opt/zap'], capture_output=True, timeout=10)
+            
+            print("Downloading ZAP...")
             urllib.request.urlretrieve(
                 'https://github.com/zaproxy/zaproxy/releases/download/v2.15.0/ZAP_2.15.0_Linux.tar.gz',
                 '/tmp/zap.tar.gz'
             )
-            subprocess.run(['tar', '-xzf', '/tmp/zap.tar.gz', '-C', '/opt'], capture_output=True, timeout=120)
-            subprocess.run(['ln', '-sf', '/opt/ZAP_2.15.0/zap.sh', '/usr/local/bin/zap.sh'], capture_output=True, timeout=10)
-            os.chmod('/usr/local/bin/zap.sh', 0o755)
+            
+            print("Extracting ZAP...")
+            result = subprocess.run(['tar', '-xzf', '/tmp/zap.tar.gz', '-C', '/opt/zap', '--strip-components=1'], 
+                                  capture_output=True, text=True, timeout=120)
+            if result.returncode != 0:
+                print(f"✗ Failed to extract ZAP: {result.stderr}")
+            
+            subprocess.run(['rm', '-f', '/tmp/zap.tar.gz'], capture_output=True, timeout=10)
+            
+            # Verify and create symlink
+            if os.path.exists(zap_script):
+                subprocess.run(['ln', '-sf', zap_script, '/usr/bin/zap.sh'], capture_output=True, timeout=10)
+                os.chmod(zap_script, 0o755)
+                os.chmod('/usr/bin/zap.sh', 0o755)
+                print(f"✓ ZAP installed at /opt/zap")
+            else:
+                print(f"✗ ZAP installation failed - zap.sh not found at {zap_script}")
+                # List what's actually in /opt/zap
+                if os.path.exists('/opt/zap'):
+                    contents = os.listdir('/opt/zap')
+                    print(f"Contents of /opt/zap: {contents[:10]}")
+        else:
+            print("✓ ZAP already installed")
         
         print("✓ All dependencies installed")
         
