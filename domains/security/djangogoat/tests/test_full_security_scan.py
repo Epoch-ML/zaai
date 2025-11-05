@@ -61,154 +61,69 @@ def test_full_security_scan(zerg_state=None):
         return path
     
     def install_system_dependencies(workspace_path):
-        """
-        Install system dependencies with caching.
-        Returns dict of paths: {'java': path, 'zap': path, etc.}
-        """
-        system = platform.system().lower()
-        print(f"Installing system dependencies on {system}...")
+        """Install system dependencies. Returns dict of paths."""
+        print("Installing system dependencies...")
         
-        paths = {}
-        local_bin = os.path.expanduser('~/.local/bin')
-        os.makedirs(local_bin, exist_ok=True)
+        # Install base packages
+        subprocess.run(['apt-get', 'update', '-qq'], capture_output=True, timeout=300)
+        subprocess.run(['apt-get', 'install', '-y', '-qq',
+            'build-essential', 'libssl-dev', 'zlib1g-dev', 'libbz2-dev',
+            'libreadline-dev', 'libsqlite3-dev', 'curl', 'git',
+            'firefox-esr', 'xvfb', 'default-jre'
+        ], capture_output=True, timeout=900)
         
-        # Check what's installed
-        has_python310 = shutil.which('python3.10') is not None
-        has_poetry = shutil.which('poetry') is not None
-        has_geckodriver = shutil.which('geckodriver') is not None
-        has_firefox = shutil.which('firefox') is not None or os.path.exists('/Applications/Firefox.app')
-        has_java = shutil.which('java') is not None
-        has_zap = shutil.which('zap.sh') is not None or os.path.exists('/Applications/OWASP ZAP.app')
+        # Python 3.10 via pyenv
+        if not shutil.which('python3.10'):
+            print("Installing Python 3.10 via pyenv...")
+            pyenv_root = os.path.expanduser('~/.pyenv')
+            if not os.path.exists(os.path.join(pyenv_root, 'bin', 'pyenv')):
+                subprocess.run(['curl', 'https://pyenv.run', '-o', '/tmp/pyenv-install.sh'], capture_output=True, timeout=60)
+                subprocess.run(['bash', '/tmp/pyenv-install.sh'], capture_output=True, timeout=300)
+            
+            pyenv_bin = os.path.join(pyenv_root, 'bin', 'pyenv')
+            os.environ['PYENV_ROOT'] = pyenv_root
+            os.environ['PATH'] = f"{pyenv_root}/shims:{pyenv_root}/bin:{os.environ['PATH']}"
+            
+            subprocess.run([pyenv_bin, 'install', '-s', '3.10.13'], capture_output=True, timeout=1800, env=os.environ)
+            subprocess.run([pyenv_bin, 'global', '3.10.13'], capture_output=True, env=os.environ)
+            
+            # Symlink to /usr/local/bin
+            python310_path = os.path.join(pyenv_root, 'versions', '3.10.13', 'bin', 'python3.10')
+            subprocess.run(['ln', '-sf', python310_path, '/usr/local/bin/python3.10'], capture_output=True, timeout=10)
         
-        # Print status
-        print(f"Status: Python3.10={has_python310}, Poetry={has_poetry}, Geckodriver={has_geckodriver}, Firefox={has_firefox}, Java={has_java}, ZAP={has_zap}")
+        # Poetry
+        if not shutil.which('poetry'):
+            print("Installing Poetry...")
+            subprocess.run(['curl', '-sSL', 'https://install.python-poetry.org', '-o', '/tmp/install-poetry.py'], capture_output=True, timeout=60)
+            subprocess.run(['python3.10', '/tmp/install-poetry.py'], capture_output=True, timeout=300, env=os.environ)
+            subprocess.run(['ln', '-sf', os.path.expanduser('~/.local/bin/poetry'), '/usr/local/bin/poetry'], capture_output=True, timeout=10)
         
-        # Install each dependency if needed
-        if system == 'linux':
-            # Python 3.10
-            if not has_python310:
-                print("Python 3.10 not found - installing via pyenv...")
-                pyenv_root = os.path.expanduser('~/.pyenv')
-                pyenv_bin = os.path.join(pyenv_root, 'bin', 'pyenv')
-                
-                if not os.path.exists(pyenv_bin):
-                    subprocess.run(['apt-get', 'update'], capture_output=True, timeout=300)
-                    subprocess.run([
-                        'apt-get', 'install', '-y',
-                        'build-essential', 'libssl-dev', 'zlib1g-dev',
-                        'libbz2-dev', 'libreadline-dev', 'libsqlite3-dev',
-                        'curl', 'libncursesw5-dev', 'xz-utils', 'tk-dev',
-                        'libxml2-dev', 'libxmlsec1-dev', 'libffi-dev', 'liblzma-dev', 'git'
-                    ], capture_output=True, timeout=600)
-                    
-                    result = subprocess.run([
-                        'curl', '-L',
-                        'https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer',
-                        '-o', 'pyenv-installer.sh'
-                    ], capture_output=True, timeout=300)
-                    subprocess.run(['bash', 'pyenv-installer.sh'], capture_output=True, timeout=300)
-                    subprocess.run(['rm', '-f', 'pyenv-installer.sh'], capture_output=True, timeout=10)
-                
-                pyenv_shims = os.path.join(pyenv_root, 'shims')
-                pyenv_bin_dir = os.path.join(pyenv_root, 'bin')
-                os.environ['PATH'] = f"{pyenv_shims}:{pyenv_bin_dir}:{os.environ['PATH']}"
-                os.environ['PYENV_ROOT'] = pyenv_root
-                
-                subprocess.run([pyenv_bin, 'install', '-s', '3.10.13'], capture_output=True, timeout=1800, env=os.environ)
-                subprocess.run([pyenv_bin, 'global', '3.10.13'], capture_output=True, env=os.environ)
-                subprocess.run([pyenv_bin, 'rehash'], capture_output=True, env=os.environ)
-                
-                python310_symlink = os.path.join(local_bin, 'python3.10')
-                python310_actual = os.path.join(pyenv_root, 'versions', '3.10.13', 'bin', 'python3.10')
-                if os.path.exists(python310_actual):
-                    if os.path.islink(python310_symlink) or os.path.exists(python310_symlink):
-                        os.remove(python310_symlink)
-                    os.symlink(python310_actual, python310_symlink)
-                print("✓ Python 3.10 installed")
-            else:
-                print("✓ Python 3.10 already available")
-            
-            paths['python310'] = shutil.which('python3.10') or os.path.join(local_bin, 'python3.10')
-            
-            # Poetry
-            if not has_poetry:
-                print("Installing Poetry...")
-                urllib.request.urlretrieve('https://install.python-poetry.org', 'install-poetry.py')
-                subprocess.run(['python3', 'install-poetry.py'], capture_output=True, timeout=300)
-                subprocess.run(['rm', '-f', 'install-poetry.py'], capture_output=True, timeout=10)
-                print("✓ Poetry installed")
-            else:
-                print("✓ Poetry already available")
-            
-            paths['poetry'] = shutil.which('poetry') or os.path.join(local_bin, 'poetry')
-            
-            # Geckodriver
-            if not has_geckodriver:
-                print("Installing Geckodriver...")
-                urllib.request.urlretrieve(
-                    'https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz',
-                    'geckodriver.tar.gz'
-                )
-                subprocess.run(['tar', '-xzf', 'geckodriver.tar.gz'], capture_output=True, timeout=60)
-                subprocess.run(['mv', 'geckodriver', local_bin], capture_output=True, timeout=60)
-                subprocess.run(['rm', '-f', 'geckodriver.tar.gz'], capture_output=True, timeout=10)
-                print("✓ Geckodriver installed")
-            else:
-                print("✓ Geckodriver already available")
-            
-            paths['geckodriver'] = shutil.which('geckodriver') or os.path.join(local_bin, 'geckodriver')
-            
-            # Firefox + Xvfb
-            if not has_firefox:
-                print("Installing Firefox and Xvfb...")
-                subprocess.run(['apt-get', 'update'], capture_output=True, timeout=300)
-                subprocess.run(['apt-get', 'install', '-y', 'xvfb'], capture_output=True, timeout=300)
-                
-                result = subprocess.run(['apt-get', 'install', '-y', 'firefox-esr'], capture_output=True, timeout=600)
-                if result.returncode != 0:
-                    result = subprocess.run(['apt-get', 'install', '-y', 'firefox'], capture_output=True, timeout=600)
-                print("✓ Firefox and Xvfb installed")
-            else:
-                print("✓ Firefox already available")
-            
-            paths['firefox'] = shutil.which('firefox') or '/usr/bin/firefox'
-            
-            # Java
-            if not has_java:
-                print("Installing Java...")
-                subprocess.run(['apt-get', 'update'], capture_output=True, timeout=300)
-                subprocess.run(['apt-get', 'install', '-y', 'default-jre'], capture_output=True, timeout=600)
-                print("✓ Java installed")
-            else:
-                print("✓ Java already available")
-            
-            paths['java'] = shutil.which('java') or '/usr/bin/java'
-            
-            # ZAP
-            if not has_zap:
-                print("Installing OWASP ZAP...")
-                zap_dir = os.path.expanduser('~/.local/zap')
-                os.makedirs(zap_dir, exist_ok=True)
-                urllib.request.urlretrieve(
-                    'https://github.com/zaproxy/zaproxy/releases/download/v2.15.0/ZAP_2.15.0_Linux.tar.gz',
-                    'zap.tar.gz'
-                )
-                subprocess.run(['tar', '-xzf', 'zap.tar.gz', '-C', zap_dir, '--strip-components=1'], capture_output=True, timeout=120)
-                subprocess.run(['rm', '-f', 'zap.tar.gz'], capture_output=True, timeout=10)
-                
-                zap_script = os.path.join(zap_dir, 'zap.sh')
-                zap_link = os.path.join(local_bin, 'zap.sh')
-                if os.path.islink(zap_link) or os.path.exists(zap_link):
-                    os.remove(zap_link)
-                os.symlink(zap_script, zap_link)
-                print("✓ OWASP ZAP installed")
-            else:
-                print("✓ OWASP ZAP already available")
-            
-            paths['zap'] = shutil.which('zap.sh') or os.path.join(local_bin, 'zap.sh')
+        # Geckodriver to /usr/local/bin
+        if not shutil.which('geckodriver'):
+            urllib.request.urlretrieve(
+                'https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz',
+                '/tmp/geckodriver.tar.gz'
+            )
+            subprocess.run(['tar', '-xzf', '/tmp/geckodriver.tar.gz', '-C', '/usr/local/bin'], capture_output=True, timeout=60)
+            os.chmod('/usr/local/bin/geckodriver', 0o755)
         
-        print("\n✓ All system dependencies installed successfully!")
-        return paths
+        # ZAP to /usr/local/bin
+        if not shutil.which('zap.sh'):
+            urllib.request.urlretrieve(
+                'https://github.com/zaproxy/zaproxy/releases/download/v2.15.0/ZAP_2.15.0_Linux.tar.gz',
+                '/tmp/zap.tar.gz'
+            )
+            subprocess.run(['tar', '-xzf', '/tmp/zap.tar.gz', '-C', '/opt'], capture_output=True, timeout=120)
+            subprocess.run(['ln', '-sf', '/opt/ZAP_2.15.0/zap.sh', '/usr/local/bin/zap.sh'], capture_output=True, timeout=10)
+            os.chmod('/usr/local/bin/zap.sh', 0o755)
+        
+        print("✓ All dependencies installed")
+        
+        return {
+            'poetry': shutil.which('poetry') or '/usr/local/bin/poetry',
+            'java': shutil.which('java') or '/usr/bin/java',
+            'zap': shutil.which('zap.sh') or '/usr/local/bin/zap.sh'
+        }
     
     def install_python_dependencies(workspace_path, djangogoat_path, poetry_path):
         """
@@ -477,45 +392,18 @@ def test_full_security_scan(zerg_state=None):
     djangogoat_path = Path(get_djangogoat_path())
     workspace_path = djangogoat_path.parent
     
-    # Install system dependencies with caching
+    # Install system dependencies
     print("\n[1/3] SYSTEM DEPENDENCIES")
     sys_paths = install_system_dependencies(workspace_path)
-    
-    # Build enhanced PATH with all installed programs
-    local_bin = os.path.expanduser('~/.local/bin')
-    path_dirs = [local_bin]
-    for prog_path in sys_paths.values():
-        prog_dir = os.path.dirname(prog_path)
-        if prog_dir not in path_dirs:
-            path_dirs.append(prog_dir)
-    
-    enhanced_path = ':'.join(path_dirs) + ':' + os.environ.get('PATH', '')
-    
-    # Cache the enhanced PATH
-    path_cache = workspace_path / '._cache_path'
-    path_cache.write_text(enhanced_path)
-    
-    # Set environment
-    os.environ['PATH'] = enhanced_path
-    os.environ['ZAP_PATH'] = sys_paths.get('zap', '')
-    print(f"✓ Enhanced PATH with {len(path_dirs)} directories")
+    poetry_path = sys_paths['poetry']
     
     # Install Python dependencies
     print("\n[2/3] PYTHON DEPENDENCIES")
-    poetry_env = install_python_dependencies(workspace_path, djangogoat_path, sys_paths['poetry'])
-    
-    # Merge Poetry environment
-    if poetry_env:
-        for key, value in poetry_env.items():
-            os.environ[key] = value
-        print("✓ Poetry environment configured")
+    poetry_env = install_python_dependencies(workspace_path, djangogoat_path, poetry_path)
     
     # Now continue with test
     print("\n[3/3] RUNNING SECURITY TESTS")
     print("="*70 + "\n")
-    
-    # Get poetry executable path for all commands
-    poetry_path = sys_paths['poetry']
     
     # Change to DjangoGoat directory and run tests
     original_dir = os.getcwd()
@@ -533,14 +421,6 @@ def test_full_security_scan(zerg_state=None):
         # Set Django environment variables
         env_vars['DJANGO_SETTINGS_MODULE'] = 'djangogoat.settings'
         env_vars['DJANGO_SECRET_KEY'] = 'insecure-behave-secret-key'
-        
-        # Ensure ZAP_PATH is in environment for behave tests
-        env_vars['ZAP_PATH'] = sys_paths.get('zap', '')
-        
-        # Debug: verify critical paths are set
-        print(f"ZAP_PATH={env_vars.get('ZAP_PATH', 'NOT SET')}")
-        print(f"Poetry in PATH: {poetry_path in env_vars.get('PATH', '')}")
-        print(f"ZAP dir in PATH: {os.path.dirname(sys_paths.get('zap', '')) in env_vars.get('PATH', '')}")
         
         # Check if server is already running - kill it for clean slate
         if is_port_in_use(3572):
@@ -588,13 +468,6 @@ def test_full_security_scan(zerg_state=None):
         
         print("✓ Django server started on port 3572")
         server_was_running = False  # We started it, so we'll shut it down
-        
-        # Verify ZAP is accessible before running behave
-        zap_path = env_vars.get('ZAP_PATH', '')
-        print(f"\nVerifying ZAP setup:")
-        print(f"  ZAP_PATH env var: {zap_path}")
-        print(f"  ZAP exists: {os.path.exists(zap_path) if zap_path else 'N/A'}")
-        print(f"  ZAP executable: {os.access(zap_path, os.X_OK) if zap_path and os.path.exists(zap_path) else 'N/A'}")
         
         print("\nRunning behave tests...")
         try:
