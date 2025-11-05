@@ -66,7 +66,7 @@ def test_full_security_scan(zerg_state=None):
         Returns dict of paths: {'java': path, 'zap': path, etc.}
         """
         system = platform.system().lower()
-        print(f"\nInstalling system dependencies on {system}...")
+        print(f"Installing system dependencies on {system}...")
         
         paths = {}
         local_bin = os.path.expanduser('~/.local/bin')
@@ -80,7 +80,10 @@ def test_full_security_scan(zerg_state=None):
         has_java = shutil.which('java') is not None
         has_zap = shutil.which('zap.sh') is not None or os.path.exists('/Applications/OWASP ZAP.app')
         
-        # Cache or install each dependency
+        # Print status
+        print(f"Status: Python3.10={has_python310}, Poetry={has_poetry}, Geckodriver={has_geckodriver}, Firefox={has_firefox}, Java={has_java}, ZAP={has_zap}")
+        
+        # Install each dependency if needed
         if system == 'linux':
             # Python 3.10
             if not has_python310:
@@ -122,6 +125,8 @@ def test_full_security_scan(zerg_state=None):
                         os.remove(python310_symlink)
                     os.symlink(python310_actual, python310_symlink)
                 print("✓ Python 3.10 installed")
+            else:
+                print("✓ Python 3.10 already available")
             
             paths['python310'] = shutil.which('python3.10') or os.path.join(local_bin, 'python3.10')
             
@@ -132,6 +137,8 @@ def test_full_security_scan(zerg_state=None):
                 subprocess.run(['python3', 'install-poetry.py'], capture_output=True, timeout=300)
                 subprocess.run(['rm', '-f', 'install-poetry.py'], capture_output=True, timeout=10)
                 print("✓ Poetry installed")
+            else:
+                print("✓ Poetry already available")
             
             paths['poetry'] = shutil.which('poetry') or os.path.join(local_bin, 'poetry')
             
@@ -146,6 +153,8 @@ def test_full_security_scan(zerg_state=None):
                 subprocess.run(['mv', 'geckodriver', local_bin], capture_output=True, timeout=60)
                 subprocess.run(['rm', '-f', 'geckodriver.tar.gz'], capture_output=True, timeout=10)
                 print("✓ Geckodriver installed")
+            else:
+                print("✓ Geckodriver already available")
             
             paths['geckodriver'] = shutil.which('geckodriver') or os.path.join(local_bin, 'geckodriver')
             
@@ -158,7 +167,9 @@ def test_full_security_scan(zerg_state=None):
                 result = subprocess.run(['apt-get', 'install', '-y', 'firefox-esr'], capture_output=True, timeout=600)
                 if result.returncode != 0:
                     result = subprocess.run(['apt-get', 'install', '-y', 'firefox'], capture_output=True, timeout=600)
-                print("✓ Firefox installed")
+                print("✓ Firefox and Xvfb installed")
+            else:
+                print("✓ Firefox already available")
             
             paths['firefox'] = shutil.which('firefox') or '/usr/bin/firefox'
             
@@ -168,6 +179,8 @@ def test_full_security_scan(zerg_state=None):
                 subprocess.run(['apt-get', 'update'], capture_output=True, timeout=300)
                 subprocess.run(['apt-get', 'install', '-y', 'default-jre'], capture_output=True, timeout=600)
                 print("✓ Java installed")
+            else:
+                print("✓ Java already available")
             
             paths['java'] = shutil.which('java') or '/usr/bin/java'
             
@@ -189,10 +202,12 @@ def test_full_security_scan(zerg_state=None):
                     os.remove(zap_link)
                 os.symlink(zap_script, zap_link)
                 print("✓ OWASP ZAP installed")
+            else:
+                print("✓ OWASP ZAP already available")
             
             paths['zap'] = shutil.which('zap.sh') or os.path.join(local_bin, 'zap.sh')
         
-        print("✓ All system dependencies ready")
+        print("\n✓ All system dependencies installed successfully!")
         return paths
     
     def install_python_dependencies(workspace_path, djangogoat_path, poetry_path):
