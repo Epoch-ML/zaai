@@ -26,9 +26,10 @@ def run():
     has_poetry = shutil.which('poetry') is not None
     has_geckodriver = shutil.which('geckodriver') is not None
     has_firefox = shutil.which('firefox') is not None or os.path.exists('/Applications/Firefox.app')
+    has_java = shutil.which('java') is not None
     has_zap = shutil.which('zap.sh') is not None or os.path.exists('/Applications/OWASP ZAP.app')
     
-    print(f"Status: Python3.10={has_python310}, Poetry={has_poetry}, Geckodriver={has_geckodriver}, Firefox={has_firefox}, ZAP={has_zap}")
+    print(f"Status: Python3.10={has_python310}, Poetry={has_poetry}, Geckodriver={has_geckodriver}, Firefox={has_firefox}, Java={has_java}, ZAP={has_zap}")
     
     if system == 'darwin':
         # macOS installation
@@ -54,6 +55,12 @@ def run():
             result = subprocess.run(['brew', 'install', '--cask', 'firefox'], capture_output=True, timeout=600)
             assert result.returncode == 0, f"Failed to install Firefox via brew: {result.stderr.decode() if result.stderr else 'Unknown error'}"
             print("✓ Firefox installed")
+        
+        if not has_java:
+            print("Installing Java (OpenJDK) via Homebrew...")
+            result = subprocess.run(['brew', 'install', 'openjdk@17'], capture_output=True, timeout=600)
+            assert result.returncode == 0, f"Failed to install Java via brew: {result.stderr.decode() if result.stderr else 'Unknown error'}"
+            print("✓ Java installed")
         
         if not has_zap:
             print("Installing OWASP ZAP via Homebrew...")
@@ -183,6 +190,14 @@ def run():
                     result = subprocess.run(['apt-get', 'install', '-y', 'firefox-geckodriver'], capture_output=True, timeout=600)
                     assert result.returncode == 0, f"Failed to install Firefox (tried firefox-esr, firefox, and firefox-geckodriver): {result.stderr.decode() if result.stderr else 'Unknown error'}"
             print("✓ Firefox installed")
+        
+        if not has_java:
+            print("Installing Java (OpenJDK) via apt-get...")
+            print("Updating package lists...")
+            subprocess.run(['apt-get', 'update'], capture_output=True, timeout=300)
+            result = subprocess.run(['apt-get', 'install', '-y', 'default-jre'], capture_output=True, timeout=600)
+            assert result.returncode == 0, f"Failed to install Java via apt-get: {result.stderr.decode() if result.stderr else 'Unknown error'}"
+            print("✓ Java installed")
         
         if not has_zap:
             print("Downloading OWASP ZAP v2.15.0...")

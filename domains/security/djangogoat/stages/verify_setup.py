@@ -60,12 +60,12 @@ def run():
         env_vars['DJANGO_SECRET_KEY'] = 'test-secret-key-for-verification'
         
         # Run behave with a short timeout just to verify it starts
-        print("Running 'poetry run behave --dry-run' to verify setup...")
+        print("Running 'poetry run behave' to verify setup...")
         result = subprocess.run(
-            [poetry_path, 'run', 'behave', '--dry-run'],
+            [poetry_path, 'run', 'behave'],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=1800,
             env=env_vars
         )
         
@@ -79,6 +79,7 @@ def run():
         
         # Check that behave found some features
         if 'features passed' in result.stdout or 'scenarios passed' in result.stdout:
+            print(result.stdout)
             print("✓ Behave setup verified successfully")
             print(f"  Found features in the test suite")
         else:
