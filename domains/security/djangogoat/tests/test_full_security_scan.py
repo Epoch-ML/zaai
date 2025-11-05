@@ -514,6 +514,9 @@ def test_full_security_scan(zerg_state=None):
     print("\n[3/3] RUNNING SECURITY TESTS")
     print("="*70 + "\n")
     
+    # Get poetry executable path for all commands
+    poetry_path = sys_paths['poetry']
+    
     # Change to DjangoGoat directory and run tests
     original_dir = os.getcwd()
     server_process = None
@@ -522,8 +525,10 @@ def test_full_security_scan(zerg_state=None):
     try:
         os.chdir(djangogoat_path)
         
-        # Get Poetry environment variables for all commands
-        env_vars = get_poetry_env_vars()
+        # Build environment variables with enhanced PATH
+        env_vars = os.environ.copy()
+        if poetry_env:
+            env_vars.update(poetry_env)
         
         # Set Django environment variables
         env_vars['DJANGO_SETTINGS_MODULE'] = 'djangogoat.settings'
@@ -552,7 +557,7 @@ def test_full_security_scan(zerg_state=None):
         # Start Django development server with clean slate
         print("Starting Django server on port 3572...")
         server_process = subprocess.Popen(
-            ['poetry', 'run', 'python', 'manage.py', 'runserver', '127.0.0.1:3572', '--noreload'],
+            [poetry_path, 'run', 'python', 'manage.py', 'runserver', '127.0.0.1:3572', '--noreload'],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
@@ -577,11 +582,12 @@ def test_full_security_scan(zerg_state=None):
         server_was_running = False  # We started it, so we'll shut it down
         
         try:
-            result = poetry_run_with_setup(
-                ['poetry', 'run', 'behave'],
+            result = subprocess.run(
+                [poetry_path, 'run', 'behave'],
                 capture_output=True,
                 text=True,
-                timeout=1800
+                timeout=1800,
+                env=env_vars
             )
         except subprocess.TimeoutExpired:
             print("✗ Test timed out")
