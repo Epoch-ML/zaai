@@ -13,14 +13,14 @@ stages:
     description: Install Poetry, Geckodriver, Firefox, and OWASP ZAP
     preconditions: System package managers are available
     postconditions: Poetry, Geckodriver, Firefox, and ZAP are installed and available in PATH
-    function_to_run: !python/file stages/install_system_dependencies.py
+    code_to_run: !python/file stages/install_system_dependencies.py
 
   - name: install dependencies
     type: before
     description: Install DjangoGoat dependencies using Poetry and cache environment
     preconditions: Poetry is available in the environment
     postconditions: All DjangoGoat dependencies are installed and environment cached
-    function_to_run: !python/file stages/install_dependencies.py
+    code_to_run: !python/file stages/install_dependencies.py
 
 specs:
   - description: "Detect and fix SQL injection vulnerabilities"
