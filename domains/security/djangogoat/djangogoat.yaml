@@ -190,12 +190,6 @@ specs:
     postconditions: "A SECURITY_CHANGELOG.md file is created or updated to document all source changes and vulnerabilities fixed. The changelog maps each change to its associated vulnerability type (CVE/CWE-style) and includes a summary block in JSON format. No secret values are exposed. If no changes have been made, the check passes and the file is not created or updated."
 
 tests:
-  - description: "Run complete security scan with OWASP ZAP and verify all tests pass (ignoring CSP and Server Version Leaks warnings)"
-    preconditions: "No preconditions required - test automatically starts and stops Django server"
-    postconditions: |
-      Django server starts successfully, full behave test suite passes with zero security alerts from ZAP (except CSP warnings and Server Version Leaks warnings), all functional tests passing, and server shuts down cleanly
-    function_to_run: !python/file tests/test_full_security_scan.py
-
   - description: "Verify SQL injection vulnerabilities are fixed"
     preconditions: "Environment contains code with SQL injection fixes applied"
     postconditions: "No SQL injection patterns detected - all queries use parameterized queries or Django ORM"
@@ -256,15 +250,13 @@ tests:
     postconditions: "Server HTTP response header does not expose version information or is properly masked"
     function_to_run: !python/file tests/test_server_header.py
 
+  - description: "Run complete security scan with OWASP ZAP and verify all tests pass (ignoring CSP and Server Version Leaks warnings)"
+    preconditions: "No preconditions required - test automatically starts and stops Django server"
+    postconditions: |
+      Django server starts successfully, full behave test suite passes with zero security alerts from ZAP (except CSP warnings and Server Version Leaks warnings), all functional tests passing, and server shuts down cleanly
+    function_to_run: !python/file tests/test_full_security_scan.py
+
 references:
-  # - description: "Intentionally vulnerable Django application repository"
-  #   git_url: "https://github.com/MeteoritoAlpha-Zerg/DjangoGoat"
-  #   workspace_path: "djangogoat"
-  #   format: "git"
-  #   git_config:
-  #     ref: "broken"
-  #   required: true
-  #   read_only: true
   - description: "Intentionally vulnerable Django application repository"
     git_url: "https://github.com/MeteoritoAlpha-Zerg/DjangoGoat"
     environment_path: "djangogoat"
@@ -273,7 +265,7 @@ references:
       ref: "broken"
       exclude_paths:
         # - "features"
-        - "djangogoat/static"
+        - "djangogoat/static/css"
     required: true
     read_only: false
 
@@ -282,3 +274,31 @@ references:
     environment_path: "security_interface.py"
     read_only: true
     required: true
+
+  - description: "Shell script to start Django development server"
+    file_path: "tests/start_server.sh"
+    environment_path: "start_server.sh"
+    format: "sh"
+    required: true
+    read_only: true
+
+  - description: "Shell script to stop Django development server"
+    file_path: "tests/stop_server.sh"
+    environment_path: "stop_server.sh"
+    format: "sh"
+    required: true
+    read_only: true
+
+  - description: "Shell script to execute behave test suite"
+    file_path: "tests/run_behave.sh"
+    environment_path: "run_behave.sh"
+    format: "sh"
+    required: true
+    read_only: true
+
+  - description: "Shell script orchestrating full test execution pipeline"
+    file_path: "tests/run_full_test.sh"
+    environment_path: "run_full_test.sh"
+    format: "sh"
+    required: true
+    read_only: true

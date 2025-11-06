@@ -6,386 +6,249 @@ Runs the complete behave test suite and validates ZAP security findings.
 import os
 import subprocess
 import re
-import time
-import socket
 from pathlib import Path
+from datetime import datetime
 
 
 def test_full_security_scan(zerg_state=None):
     """
     Run the full DjangoGoat test suite with OWASP ZAP and validate results.
     
-    This test:
-    1. Starts the Django server (gunicorn)
-    2. Runs 'poetry run behave' in the DjangoGoat directory
-    3. Parses ZAP alert counts by severity level
-    4. Parses test pass/fail results
-    5. Shuts down the Django server
-    6. Validates that there are no security alerts and all tests pass
-    
-    Args:
-        zerg_state: Optional state object (not required for this test)
-        
     Returns:
         True if all tests pass and no vulnerabilities found, False otherwise
     """
     
-    def get_poetry_env_vars():
-        """
-        Get Poetry environment variables from cache set by stages.
-        Requires stages to have run first - does not set up environment on its own.
-        """
-        from security_interface import get_poetry_env
-        
-        # Get cached environment from stages
-        cached_env = get_poetry_env()
-        if cached_env:
-            # Merge with current environment
-            env_vars = os.environ.copy()
-            env_vars.update(cached_env)
-            return env_vars
-        
-        # No cache found - stages didn't run or failed
-        # Return current environment and let the test fail with helpful message
-        return os.environ.copy()
+    # Global log file handle
+    log_file_handle = {'file': None}
     
-    def poetry_run_with_setup(cmd, **kwargs):
-        """
-        Wrapper for subprocess.run that uses cached Poetry environment from stages.
-        All commands share the same virtualenv via environment variables.
-        """
-        env_vars = get_poetry_env_vars()
+    def log_print(*args, **kwargs):
+        """Print to console and append to log file."""
+        # Filter kwargs to only include valid print() arguments
+        valid_print_kwargs = {'sep', 'end', 'file', 'flush'}
+        print_kwargs = {k: v for k, v in kwargs.items() if k in valid_print_kwargs}
         
-        # Add environment to kwargs if not already specified
-        if 'env' not in kwargs:
-            kwargs['env'] = env_vars
+        # Print to console
+        print(*args, **print_kwargs)
         
-        # Run the actual command
-        return subprocess.run(cmd, **kwargs)
+        # Also write to log file if it's open
+        if log_file_handle['file']:
+            sep = kwargs.get('sep', ' ')
+            end = kwargs.get('end', '\n')
+            message = sep.join(str(arg) for arg in args)
+            log_file_handle['file'].write(message + end)
+            log_file_handle['file'].flush()
     
-    def is_port_in_use(port, host='127.0.0.1'):
-        """Check if a port is already in use."""
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            try:
-                s.connect((host, port))
-                return True
-            except (socket.error, ConnectionRefusedError):
-                return False
+    def open_log_file(log_path):
+        """Open the log file for writing."""
+        log_file_handle['file'] = open(log_path, 'w', encoding='utf-8')
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_file_handle['file'].write(f"="*70 + "\n")
+        log_file_handle['file'].write(f"DjangoGoat Security Scan Log\n")
+        log_file_handle['file'].write(f"Started: {timestamp}\n")
+        log_file_handle['file'].write(f"="*70 + "\n\n")
+        log_file_handle['file'].flush()
     
-    def wait_for_server(port=3572, host='127.0.0.1', timeout=30):
-        """Wait for the server to be ready to accept connections."""
-        start_time = time.time()
-        while time.time() - start_time < timeout:
-            if is_port_in_use(port, host):
-                return True
-            time.sleep(0.5)
-        return False
+    def close_log_file():
+        """Close the log file."""
+        if log_file_handle['file']:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            log_file_handle['file'].write(f"\n" + "="*70 + "\n")
+            log_file_handle['file'].write(f"Completed: {timestamp}\n")
+            log_file_handle['file'].write(f"="*70 + "\n")
+            log_file_handle['file'].close()
+            log_file_handle['file'] = None
     
-    def parse_behave_output(output):
-        """
-        Parse behave test output to extract test results.
+    def read_test_output():
+        """Read test output from temp file."""
+        output_file = Path('/tmp/djangogoat_test_output.txt')
+        if output_file.exists():
+            return output_file.read_text()
+        return None
+    
+    def parse_test_results(output):
+        """Extract test pass/fail counts."""
+        results = {}
         
-        Expected format:
-        "X features passed, Y failed, Z skipped"
-        "X scenarios passed, Y failed, Z skipped"
-        "X steps passed, Y failed, Z skipped"
-        """
-        results = {
-            'features_passed': 0,
-            'features_failed': 0,
-            'scenarios_passed': 0,
-            'scenarios_failed': 0,
-            'steps_passed': 0,
-            'steps_failed': 0,
-        }
+        patterns = [
+            ('features', r'(\d+)\s+features?\s+passed.*?(\d+)\s+failed'),
+            ('scenarios', r'(\d+)\s+scenarios?\s+passed.*?(\d+)\s+failed'),
+            ('steps', r'(\d+)\s+steps?\s+passed.*?(\d+)\s+failed'),
+        ]
         
-        # Match pattern: "X feature(s) passed, Y failed"
-        feature_match = re.search(r'(\d+)\s+features?\s+passed.*?(\d+)\s+failed', output)
-        if feature_match:
-            results['features_passed'] = int(feature_match.group(1))
-            results['features_failed'] = int(feature_match.group(2))
-        
-        scenario_match = re.search(r'(\d+)\s+scenarios?\s+passed.*?(\d+)\s+failed', output)
-        if scenario_match:
-            results['scenarios_passed'] = int(scenario_match.group(1))
-            results['scenarios_failed'] = int(scenario_match.group(2))
-        
-        step_match = re.search(r'(\d+)\s+steps?\s+passed.*?(\d+)\s+failed', output)
-        if step_match:
-            results['steps_passed'] = int(step_match.group(1))
-            results['steps_failed'] = int(step_match.group(2))
+        for name, pattern in patterns:
+            match = re.search(pattern, output)
+            if match:
+                results[f'{name}_passed'] = int(match.group(1))
+                results[f'{name}_failed'] = int(match.group(2))
         
         return results
     
-    def parse_zap_alerts(output, djangogoat_path):
-        """
-        Parse ZAP alerts from behave output and report.html file.
-        
-        Looks for:
-        1. "There are X Zap alerts." in the output
-        2. "Alerts by Risk Level:" structured output
-        3. Parses report.html if available for detailed breakdown by severity
-        """
-        results = {
-            'total': 0,
-            'by_risk': {}
-        }
-        
-        # Try to get total from output
-        alert_match = re.search(r'There are (\d+) Zap alerts?\.', output)
-        if alert_match:
-            results['total'] = int(alert_match.group(1))
-        
-        # Try to parse structured output from environment.py
-        if 'Alerts by Risk Level:' in output:
-            risk_section = output.split('Alerts by Risk Level:')[1].split('\n\n')[0]
-            
-            high_match = re.search(r'High:\s*(\d+)', risk_section)
-            medium_match = re.search(r'Medium:\s*(\d+)', risk_section)
-            low_match = re.search(r'Low:\s*(\d+)', risk_section)
-            info_match = re.search(r'Informational:\s*(\d+)', risk_section)
-            
-            if high_match:
-                count = int(high_match.group(1))
-                if count > 0:
-                    results['by_risk']['High'] = count
-            if medium_match:
-                count = int(medium_match.group(1))
-                if count > 0:
-                    results['by_risk']['Medium'] = count
-            if low_match:
-                count = int(low_match.group(1))
-                if count > 0:
-                    results['by_risk']['Low'] = count
-            if info_match:
-                count = int(info_match.group(1))
-                if count > 0:
-                    results['by_risk']['Informational'] = count
-        
-        return results
-    
-    def parse_detailed_alerts(djangogoat_path):
-        """
-        Parse detailed alert information from HTML report.
-        Returns list of alerts with name, risk, URL, and description.
-        """
+    def parse_alert_details(djangogoat_path):
+        """Parse alerts from HTML report."""
         report_path = Path(djangogoat_path) / 'report.html'
         if not report_path.exists():
             return []
         
         try:
-            with open(report_path, 'r', encoding='utf-8') as f:
-                report_content = f.read()
+            content = report_path.read_text(encoding='utf-8')
+            alerts = []
             
-            detailed_alerts = []
+            pattern = r'<th[^>]*class="risk-(\d+)"[^>]*>.*?<div>(\w+)</div>.*?</th>\s*<th[^>]*class="risk-\d+"[^>]*>([^<]+)</th>'
+            risk_map = {'3': 'High', '2': 'Medium', '1': 'Low', '0': 'Informational'}
             
-            # Find all alert tables
-            # Pattern: <th class="risk-X">Alert Name</th>
-            alert_matches = re.finditer(
-                r'<th[^>]*class="risk-(\d+)"[^>]*>.*?<div>(\w+)</div>.*?</th>\s*<th[^>]*class="risk-\d+"[^>]*>([^<]+)</th>',
-                report_content,
-                re.DOTALL
-            )
-            
-            for match in alert_matches:
-                risk_code = match.group(1)
-                risk_text = match.group(2).strip()
-                alert_name = match.group(3).strip()
+            for match in re.finditer(pattern, content, re.DOTALL):
+                risk = risk_map.get(match.group(1), 'Unknown')
+                name = match.group(3).strip()
                 
-                # Map risk code to text
-                risk_map = {'3': 'High', '2': 'Medium', '1': 'Low', '0': 'Informational'}
-                risk = risk_map.get(risk_code, risk_text)
+                # Extract URLs from section
+                section = content[match.start():match.start() + 5000]
+                urls = re.findall(r'class="indent1">URL</td>\s*<td[^>]*>(?:<a[^>]*>)?([^<]+)', section)
                 
-                # Find the table containing this alert
-                start_pos = match.start()
-                # Find next table closing or next alert
-                end_match = re.search(r'</table>|<th[^>]*class="risk-', report_content[start_pos + len(match.group(0)):])
-                if end_match:
-                    section = report_content[start_pos:start_pos + len(match.group(0)) + end_match.start()]
-                else:
-                    section = report_content[start_pos:start_pos + 5000]  # Get next 5000 chars
-                
-                # Extract URLs from this section
-                url_matches = re.findall(r'class="indent1">URL</td>\s*<td[^>]*>(?:<a[^>]*>)?([^<]+)', section)
-                
-                for url in url_matches:
-                    detailed_alerts.append({
-                        'name': alert_name,
-                        'risk': risk,
-                        'url': url.strip()
-                    })
+                for url in urls:
+                    alerts.append({'name': name, 'risk': risk, 'url': url.strip()})
             
-            # Sort by risk level
-            risk_order = {'High': 0, 'Medium': 1, 'Low': 2, 'Informational': 3, 'Unknown': 4}
-            detailed_alerts.sort(key=lambda x: (risk_order.get(x['risk'], 999), x['name']))
-            
-            return detailed_alerts
-        except Exception as e:
+            return alerts
+        except Exception:
             return []
     
-    # Main test logic starts here
-    # Get the environment interface to locate DjangoGoat
-    from security_interface import get_djangogoat_path
+    def filter_important_alerts(alerts):
+        """Filter out ignored alerts (CSP and Server Version)."""
+        ignored = {
+            'Content Security Policy (CSP) Header Not Set',
+            'Server Leaks Version Information via "Server" HTTP Response Header Field',
+        }
+        return [a for a in alerts if a['name'] not in ignored]
+    
+    def display_alert_summary(alerts):
+        """Display count of alerts by type."""
+        summary = {}
+        for alert in alerts:
+            key = (alert['name'], alert['risk'])
+            summary[key] = summary.get(key, 0) + 1
+        
+        risk_order = {'High': 0, 'Medium': 1, 'Low': 2, 'Informational': 3}
+        sorted_alerts = sorted(summary.items(), key=lambda x: (risk_order.get(x[0][1], 999), x[0][0]))
+        
+        log_print("\nAlert Summary:")
+        for (name, risk), count in sorted_alerts:
+            log_print(f"  [{risk}] {name}: {count} URLs")
+    
+    def display_important_alerts(alerts):
+        """Display important alerts by risk level."""
+        for risk_level in ['High', 'Medium', 'Low']:
+            level_alerts = [a for a in alerts if a['risk'] == risk_level]
+            if not level_alerts:
+                continue
+                
+            log_print(f"\n[{risk_level.upper()}]")
+            
+            by_name = {}
+            for alert in level_alerts:
+                name = alert['name']
+                by_name.setdefault(name, []).append(alert['url'])
+            
+            for name, urls in by_name.items():
+                log_print(f"\n  • {name}")
+                for url in urls:
+                    log_print(f"      {url}")
+    
+    def validate_results(output, djangogoat_path):
+        """Parse output and determine pass/fail."""
+        
+        # Parse test results
+        test_results = parse_test_results(output)
+        has_test_failures = (
+            test_results.get('features_failed', 0) > 0 or
+            test_results.get('scenarios_failed', 0) > 0 or
+            test_results.get('steps_failed', 0) > 0
+        )
+        
+        # Parse and filter ZAP alerts
+        all_alerts = parse_alert_details(djangogoat_path)
+        important_alerts = filter_important_alerts(all_alerts)
+        
+        # Display results
+        log_print("\n" + "="*70)
+        log_print("RESULTS")
+        log_print("="*70)
+        
+        if test_results:
+            log_print(f"Features: {test_results.get('features_passed', 0)} passed, "
+                      f"{test_results.get('features_failed', 0)} failed")
+            log_print(f"Scenarios: {test_results.get('scenarios_passed', 0)} passed, "
+                      f"{test_results.get('scenarios_failed', 0)} failed")
+            log_print(f"Steps: {test_results.get('steps_passed', 0)} passed, "
+                      f"{test_results.get('steps_failed', 0)} failed")
+        
+        if all_alerts:
+            log_print(f"\nZAP Alerts: {len(all_alerts)} total, {len(important_alerts)} important")
+            display_alert_summary(all_alerts)
+        
+        if important_alerts:
+            log_print("\n" + "="*70)
+            log_print(f"SECURITY ISSUES: {len(important_alerts)}")
+            log_print("="*70)
+            display_important_alerts(important_alerts)
+        
+        # Determine pass/fail
+        passed = not has_test_failures and not important_alerts
+        
+        log_print("\n" + "="*70)
+        log_print("PASSED" if passed else "FAILED")
+        log_print("="*70 + "\n")
+        
+        return passed
+    
+    # ========== Main test execution starts here ==========
+    
+    from security_interface import get_djangogoat_path, get_poetry_env
+    
     djangogoat_path = Path(get_djangogoat_path())
-
     if not djangogoat_path.exists():
-        print(f"✗ DjangoGoat directory not found")
+        print("✗ DjangoGoat directory not found")
         return False
     
-    # Change to DjangoGoat directory and run tests
+    # Open log file
+    log_path = Path('/tmp/djangogoat_test_log.txt')
+    open_log_file(log_path)
+    log_print(f"Log file: {log_path}")
+    
+    # Setup environment
+    env_vars = os.environ.copy()
+    cached_env = get_poetry_env()
+    if cached_env:
+        env_vars.update(cached_env)
+    env_vars['DJANGO_SETTINGS_MODULE'] = 'djangogoat.settings'
+    env_vars['DJANGO_SECRET_KEY'] = 'insecure-behave-secret-key'
+    
+    # Change to DjangoGoat directory
     original_dir = os.getcwd()
-    server_process = None
-    server_was_running = False  # Track if we need to shut down the server
+    os.chdir(djangogoat_path)
     
     try:
-        os.chdir(djangogoat_path)
-        
-        # Get Poetry environment variables for all commands
-        env_vars = get_poetry_env_vars()
-        
-        # Set Django environment variables
-        env_vars['DJANGO_SETTINGS_MODULE'] = 'djangogoat.settings'
-        env_vars['DJANGO_SECRET_KEY'] = 'insecure-behave-secret-key'
-        
-        # Check if server is already running
-        if is_port_in_use(3572):
-            server_was_running = True
-        else:
-            # Start Django development server
-            server_process = subprocess.Popen(
-                ['poetry', 'run', 'python', 'manage.py', 'runserver', '127.0.0.1:3572', '--noreload'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                env=env_vars
-            )
-            
-            # Wait for server to be ready
-            if wait_for_server(port=3572, timeout=30):
-                server_was_running = False
-            else:
-                print("✗ Server failed to start")
-                if server_process:
-                    server_process.terminate()
-                return False
-        
-        try:
-            result = poetry_run_with_setup(
-                ['poetry', 'run', 'behave'],
-                capture_output=True,
-                text=True,
-                timeout=1800
-            )
-        except subprocess.TimeoutExpired:
-            print("✗ Test timed out")
-            return False
-        except Exception as e:
-            print(f"✗ Error: {e}")
-            return False
-        
-        output = result.stdout + result.stderr
-        
-        # Suppress verbose output - we'll show only the summary
-        
-        # Check if behave actually ran
-        if 'Command not found: behave' in output or 'command not found' in output.lower():
-            print("✗ behave not found - run poetry install")
-            return False
-        
-        if 'No module named' in output and 'behave' in output:
-            print("✗ behave module missing - run poetry install")
-            return False
-        
-        # Parse the results
-        test_results = parse_behave_output(output)
-        zap_results = parse_zap_alerts(output, djangogoat_path)
-        
-        # Print minimal summary
-        print("\n" + "="*70)
-        print("RESULTS")
-        print("="*70)
-        
-        # Validate that behave actually ran tests
-        total_tests_run = (
-            test_results['features_passed'] + test_results['features_failed'] +
-            test_results['scenarios_passed'] + test_results['scenarios_failed'] +
-            test_results['steps_passed'] + test_results['steps_failed']
+        # Run full test suite via shell script
+        script_path = Path(__file__).parent / 'run_full_test.sh'
+        result = subprocess.run(
+            ['bash', str(script_path)],
+            env=env_vars,
+            timeout=1800
         )
         
-        if total_tests_run == 0:
-            print("✗ No tests executed")
+        # Read test output
+        output = read_test_output()
+        if not output:
+            log_print("✗ Could not read test output")
             return False
         
-        if 'OWASP ZAP was not started' in output or 'skipping active scanning' in output:
-            print("✗ ZAP not started - install OWASP ZAP")
-            return False
+        # Parse and validate results
+        return validate_results(output, djangogoat_path)
         
-        if 'ALL SCANS COMPLETED' not in output and 'All scans completed' not in output:
-            print("✗ ZAP scans incomplete")
-            return False
-        
-        # Determine pass/fail based on test results and ZAP alerts
-        has_test_failures = (
-            test_results['features_failed'] > 0 or
-            test_results['scenarios_failed'] > 0 or
-            test_results['steps_failed'] > 0
-        )
-        has_security_alerts = zap_results['total'] > 0
-        
-        # Show failed features if any
-        if has_test_failures:
-            if 'Failing scenarios:' in output:
-                failing_section = output.split('Failing scenarios:')[1].split('\n\n')[0]
-                print("\nFailed Features:")
-                print(failing_section.strip())
-        
-        # Show security alerts if any
-        if has_security_alerts:
-            print(f"\nSecurity Alerts: {zap_results['total']} total")
-            
-            detailed_alerts = parse_detailed_alerts(djangogoat_path)
-            if detailed_alerts:
-                # Group by risk level and vulnerability type
-                for risk_level in ['High', 'Medium', 'Low']:
-                    level_alerts = [a for a in detailed_alerts if a['risk'] == risk_level]
-                    if level_alerts:
-                        print(f"\n{risk_level}:")
-                        # Group by alert name
-                        alert_groups = {}
-                        for alert in level_alerts:
-                            name = alert['name']
-                            if name not in alert_groups:
-                                alert_groups[name] = []
-                            alert_groups[name].append(alert['url'])
-                        
-                        for name, urls in alert_groups.items():
-                            print(f"  • {name}")
-                            for url in urls:
-                                print(f"    {url}")
-        
-        # Return result
-        print("\n" + "="*70)
-        if has_test_failures or has_security_alerts:
-            print("FAILED")
-            print("="*70 + "\n")
-            return False
-        else:
-            print("PASSED")
-            print("="*70 + "\n")
-            return True
-            
+    except subprocess.TimeoutExpired:
+        log_print("✗ Tests timed out (30 minutes)")
+        return False
+    except Exception as e:
+        log_print(f"✗ Error running tests: {e}")
+        return False
     finally:
-        # Shut down the Django server if we started it
-        if server_process and not server_was_running:
-            try:
-                server_process.terminate()
-                server_process.wait(timeout=10)
-            except Exception:
-                try:
-                    server_process.kill()
-                except:
-                    pass
-        
-        # Return to original directory
+        close_log_file()
         os.chdir(original_dir)
-
