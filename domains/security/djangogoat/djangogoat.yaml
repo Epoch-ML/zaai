@@ -73,6 +73,12 @@ specs:
     postconditions: "A SECURITY_CHANGELOG.md file is created or updated to document all source changes and vulnerabilities fixed. The changelog maps each change to its associated vulnerability type (CVE/CWE-style) and includes a summary block in JSON format. No secret values are exposed. If no changes have been made, the check passes and the file is not created or updated."
 
 tests:
+  - description: "Run complete security scan with OWASP ZAP and verify all tests pass (ignoring CSP and Server Version Leaks warnings)"
+    preconditions: "No preconditions required - test automatically starts and stops Django server"
+    postconditions: |
+      Django server starts successfully, full behave test suite passes with zero security alerts from ZAP (except CSP warnings and Server Version Leaks warnings), all functional tests passing, and server shuts down cleanly
+    function_to_run: !python/file tests/test_full_security_scan.py
+
   - description: "Verify SQL injection vulnerabilities are fixed"
     preconditions: "Environment contains code with SQL injection fixes applied"
     postconditions: "No SQL injection patterns detected - all queries use parameterized queries or Django ORM"
@@ -149,7 +155,7 @@ references:
     git_config:
       ref: "broken"
       exclude_paths:
-        - "features"
+        # - "features"
         - "djangogoat/static"
     required: true
     read_only: false
