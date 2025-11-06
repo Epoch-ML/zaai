@@ -5,4 +5,5 @@ manifests:
 #- !include templates/j2_template.yaml
 - !include git/git.yaml
 - !include glob/glob.yaml
+- !include python/python.yaml
 
