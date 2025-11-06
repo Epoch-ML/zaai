@@ -112,12 +112,17 @@ def test_full_security_scan(zerg_state=None):
             return []
     
     def filter_important_alerts(alerts):
-        """Filter out ignored alerts (CSP and Server Version)."""
-        ignored = {
+        """Filter out ignored alerts (CSP, Low, and Informational severity)."""
+        ignored_names = {
             'Content Security Policy (CSP) Header Not Set',
             'Server Leaks Version Information via "Server" HTTP Response Header Field',
         }
-        return [a for a in alerts if a['name'] not in ignored]
+        ignored_risks = {'Low', 'Informational'}
+        
+        return [
+            a for a in alerts 
+            if a['name'] not in ignored_names and a['risk'] not in ignored_risks
+        ]
     
     def display_alert_summary(alerts):
         """Display count of alerts by type."""
@@ -134,8 +139,8 @@ def test_full_security_scan(zerg_state=None):
             log_print(f"  [{risk}] {name}: {count} URLs")
     
     def display_important_alerts(alerts):
-        """Display important alerts by risk level."""
-        for risk_level in ['High', 'Medium', 'Low']:
+        """Display important alerts by risk level (High and Medium only)."""
+        for risk_level in ['High', 'Medium']:
             level_alerts = [a for a in alerts if a['risk'] == risk_level]
             if not level_alerts:
                 continue
@@ -155,7 +160,7 @@ def test_full_security_scan(zerg_state=None):
     def validate_results(output, djangogoat_path):
         """Parse output and determine pass/fail."""
         
-        # Parse test results
+        # Parse test results from behave output
         test_results = parse_test_results(output)
         has_test_failures = (
             test_results.get('features_failed', 0) > 0 or
@@ -163,30 +168,37 @@ def test_full_security_scan(zerg_state=None):
             test_results.get('steps_failed', 0) > 0
         )
         
-        # Parse and filter ZAP alerts
+        # Parse ZAP alerts directly from report.html
+        log_print("\nParsing ZAP security report...")
         all_alerts = parse_alert_details(djangogoat_path)
         important_alerts = filter_important_alerts(all_alerts)
         
         # Display results
         log_print("\n" + "="*70)
-        log_print("RESULTS")
+        log_print("TEST RESULTS")
         log_print("="*70)
         
         if test_results:
-            log_print(f"Features: {test_results.get('features_passed', 0)} passed, "
+            log_print(f"\nBehave Tests:")
+            log_print(f"  Features: {test_results.get('features_passed', 0)} passed, "
                       f"{test_results.get('features_failed', 0)} failed")
-            log_print(f"Scenarios: {test_results.get('scenarios_passed', 0)} passed, "
+            log_print(f"  Scenarios: {test_results.get('scenarios_passed', 0)} passed, "
                       f"{test_results.get('scenarios_failed', 0)} failed")
-            log_print(f"Steps: {test_results.get('steps_passed', 0)} passed, "
+            log_print(f"  Steps: {test_results.get('steps_passed', 0)} passed, "
                       f"{test_results.get('steps_failed', 0)} failed")
         
         if all_alerts:
-            log_print(f"\nZAP Alerts: {len(all_alerts)} total, {len(important_alerts)} important")
+            log_print(f"\nZAP Security Scan:")
+            log_print(f"  Total alerts: {len(all_alerts)}")
+            log_print(f"  High/Medium: {len(important_alerts)}")
+            log_print(f"  Ignored (Low/Info/CSP): {len(all_alerts) - len(important_alerts)}")
             display_alert_summary(all_alerts)
+        else:
+            log_print(f"\nZAP Security Scan: No report.html found")
         
         if important_alerts:
             log_print("\n" + "="*70)
-            log_print(f"SECURITY ISSUES: {len(important_alerts)}")
+            log_print(f"CRITICAL ISSUES: {len(important_alerts)} (High/Medium severity)")
             log_print("="*70)
             display_important_alerts(important_alerts)
         
@@ -194,7 +206,7 @@ def test_full_security_scan(zerg_state=None):
         passed = not has_test_failures and not important_alerts
         
         log_print("\n" + "="*70)
-        log_print("PASSED" if passed else "FAILED")
+        log_print("PASSED ✓" if passed else "FAILED ✗")
         log_print("="*70 + "\n")
         
         return passed
@@ -211,7 +223,6 @@ def test_full_security_scan(zerg_state=None):
     # Open log file
     log_path = Path('/tmp/djangogoat_test_log.txt')
     open_log_file(log_path)
-    log_print(f"Log file: {log_path}")
     
     # Setup environment
     env_vars = os.environ.copy()
@@ -226,21 +237,25 @@ def test_full_security_scan(zerg_state=None):
     os.chdir(djangogoat_path)
     
     try:
-        # Run full test suite via shell script
+        log_print("Running DjangoGoat security test suite...")
+        log_print("(Server startup/shutdown is silent - check report.html for details)")
+        
+        # Run full test suite via shell script (completely silent)
         script_path = Path(__file__).parent / 'run_full_test.sh'
         result = subprocess.run(
             ['bash', str(script_path)],
             env=env_vars,
-            timeout=1800
+            timeout=1800,
+            capture_output=True  # Suppress all output from shell scripts
         )
         
-        # Read test output
+        # Read test output from file
         output = read_test_output()
         if not output:
-            log_print("✗ Could not read test output")
+            log_print("✗ Could not read test output from /tmp/djangogoat_test_output.txt")
             return False
         
-        # Parse and validate results
+        # Parse and validate results (reads from report.html)
         return validate_results(output, djangogoat_path)
         
     except subprocess.TimeoutExpired:

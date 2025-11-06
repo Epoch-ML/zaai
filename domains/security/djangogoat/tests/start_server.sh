@@ -1,5 +1,5 @@
 #!/bin/bash
-# Start Django server for testing
+# Start Django server for testing (silent mode)
 # Usage: ./start_server.sh [port]
 
 PORT=${1:-3572}
@@ -18,27 +18,23 @@ fi
 # Wait for port to be released
 sleep 0.5
 
-# Run migrations
-echo "Setting up database..."
-poetry run python manage.py migrate --run-syncdb --noinput || exit 1
-echo "✓ Database ready"
+# Run migrations (silent)
+poetry run python manage.py migrate --run-syncdb --noinput >/dev/null 2>&1 || exit 1
 
-# Start server
-echo "Starting Django server on port $PORT..."
-poetry run python manage.py runserver 127.0.0.1:$PORT --noreload &
+# Start server (silent, background)
+poetry run python manage.py runserver 127.0.0.1:$PORT --noreload >/dev/null 2>&1 &
 SERVER_PID=$!
 
 # Wait for server to be ready
 for i in {1..30}; do
     if nc -z 127.0.0.1 $PORT 2>/dev/null || curl -s http://127.0.0.1:$PORT >/dev/null 2>&1; then
-        echo "✓ Server started (PID: $SERVER_PID)"
         echo $SERVER_PID > /tmp/djangogoat_server.pid
         exit 0
     fi
     sleep 0.5
 done
 
-echo "✗ Server failed to start"
+# Server failed to start
 kill -9 $SERVER_PID 2>/dev/null || true
 exit 1
 

@@ -2,21 +2,7 @@
 # Run behave tests and output results
 # Usage: ./run_behave.sh
 
-set -e
-
-echo "======================================================================"
-echo "RUNNING BEHAVE TESTS"
-echo "======================================================================"
-echo ""
-
-# Run behave and capture exit code
+# Run behave (output will be captured by caller)
 poetry run behave
-BEHAVE_EXIT=$?
-
-echo ""
-echo "======================================================================"
-echo "BEHAVE TESTS COMPLETED (exit code: $BEHAVE_EXIT)"
-echo "======================================================================"
-
-exit $BEHAVE_EXIT
+exit $?
 

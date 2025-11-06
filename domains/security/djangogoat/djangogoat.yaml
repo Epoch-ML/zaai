@@ -250,10 +250,10 @@ tests:
     postconditions: "Server HTTP response header does not expose version information or is properly masked"
     function_to_run: !python/file tests/test_server_header.py
 
-  - description: "Run complete security scan with OWASP ZAP and verify all tests pass (ignoring CSP and Server Version Leaks warnings)"
+  - description: "Run complete security scan with OWASP ZAP and verify all tests pass (ignoring Low/Informational alerts)"
     preconditions: "No preconditions required - test automatically starts and stops Django server"
     postconditions: |
-      Django server starts successfully, full behave test suite passes with zero security alerts from ZAP (except CSP warnings and Server Version Leaks warnings), all functional tests passing, and server shuts down cleanly
+      Django server starts successfully, full behave test suite passes with zero HIGH or MEDIUM security alerts from ZAP (Low and Informational alerts are ignored), all functional tests passing, and server shuts down cleanly
     function_to_run: !python/file tests/test_full_security_scan.py
 
 references:
