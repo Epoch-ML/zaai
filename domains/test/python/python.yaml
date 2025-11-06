@@ -1,0 +1,32 @@
+name: "python_env"
+category: "Python Environment"
+description: |
+  Test Python file loading with module structure for indexing/summarization/concatenation testing
+
+specs: []
+
+tests: []
+
+references:
+  - description: "Main application entry point"
+    file_path: "main.py"
+    environment_path: "src/main.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Data processing module"
+    file_path: "data_processor.py"
+    environment_path: "src/extra/data_processor.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Utility functions module"
+    file_path: "utils.py"
+    environment_path: "src/extra/utils.py"
+    format: "python"
+    required: true
+    read_only: true
+
+configs: []
