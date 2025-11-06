@@ -1,4 +1,4 @@
-name: "python_env"
+name: "python"
 category: "Python Environment"
 description: |
   Test Python file loading with module structure for indexing/summarization/concatenation testing
