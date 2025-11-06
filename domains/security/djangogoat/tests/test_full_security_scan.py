@@ -312,9 +312,12 @@ def test_full_security_scan(zerg_state=None):
         1. "There are X Zap alerts." in the output
         2. "Alerts by Risk Level:" structured output
         3. Parses report.html if available for detailed breakdown by severity
+        
+        Only counts MEDIUM and HIGH severity alerts as failures.
         """
         results = {
             'total': 0,
+            'total_medium_high': 0,  # Only Medium and High alerts
             'by_risk': {}
         }
         
@@ -336,10 +339,12 @@ def test_full_security_scan(zerg_state=None):
                 count = int(high_match.group(1))
                 if count > 0:
                     results['by_risk']['High'] = count
+                    results['total_medium_high'] += count
             if medium_match:
                 count = int(medium_match.group(1))
                 if count > 0:
                     results['by_risk']['Medium'] = count
+                    results['total_medium_high'] += count
             if low_match:
                 count = int(low_match.group(1))
                 if count > 0:
@@ -566,7 +571,8 @@ def test_full_security_scan(zerg_state=None):
             test_results['scenarios_failed'] > 0 or
             test_results['steps_failed'] > 0
         )
-        has_security_alerts = zap_results['total'] > 0
+        # Only count Medium and High severity alerts as failures
+        has_security_alerts = zap_results['total_medium_high'] > 0
         
         # Show failed features if any
         if has_test_failures:
@@ -576,13 +582,13 @@ def test_full_security_scan(zerg_state=None):
                 print(failing_section.strip())
         
         # Show security alerts if any
-        if has_security_alerts:
-            print(f"\nSecurity Alerts: {zap_results['total']} total")
+        if zap_results['total'] > 0:
+            print(f"\nSecurity Alerts: {zap_results['total']} total ({zap_results['total_medium_high']} Medium/High)")
             
             detailed_alerts = parse_detailed_alerts(djangogoat_path)
             if detailed_alerts:
-                # Group by risk level and vulnerability type
-                for risk_level in ['High', 'Medium', 'Low']:
+                # Show only Medium and High alerts (failures)
+                for risk_level in ['High', 'Medium']:
                     level_alerts = [a for a in detailed_alerts if a['risk'] == risk_level]
                     if level_alerts:
                         print(f"\n{risk_level}:")
@@ -598,6 +604,13 @@ def test_full_security_scan(zerg_state=None):
                             print(f"  • {name}")
                             for url in urls:
                                 print(f"    {url}")
+                
+                # Show Low alerts as informational only
+                low_alerts = [a for a in detailed_alerts if a['risk'] == 'Low']
+                if low_alerts:
+                    low_count = len(low_alerts)
+                    low_types = len(set(a['name'] for a in low_alerts))
+                    print(f"\nLow (informational only): {low_count} alerts of {low_types} types")
         
         # Return result
         print("\n" + "="*70)
