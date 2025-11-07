@@ -6,23 +6,29 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FULL_LOG="$SCRIPT_DIR/djangogoat_full_test.log"
 
-# Truncate full log at start
+# Truncate full log at start and mirror stdout/stderr
 : > "$FULL_LOG"
+exec > >(tee -a "$FULL_LOG") 2>&1
 
 # Cleanup function
 cleanup() {
-    bash "$SCRIPT_DIR/stop_server.sh" >>"$FULL_LOG" 2>&1
+    echo "[run_full_test] Cleaning up..."
+    bash "$SCRIPT_DIR/stop_server.sh"
 }
 
 # Set trap to ensure cleanup runs
 trap cleanup EXIT INT TERM
 
-# Start server - completely silent
-bash "$SCRIPT_DIR/start_server.sh" 3572 >>"$FULL_LOG" 2>&1 || exit 1
+# Start server
+echo "[run_full_test] Starting server..."
+bash "$SCRIPT_DIR/start_server.sh" 3572 || exit 1
 
-# Run behave tests (logged)
-bash "$SCRIPT_DIR/run_behave.sh" >>"$FULL_LOG" 2>&1
+# Run behave tests
+echo "[run_full_test] Executing behave suite..."
+bash "$SCRIPT_DIR/run_behave.sh"
 
 # Return behave exit code
-exit $?
+STATUS=$?
+echo "[run_full_test] Behave exit code: $STATUS"
+exit $STATUS
 

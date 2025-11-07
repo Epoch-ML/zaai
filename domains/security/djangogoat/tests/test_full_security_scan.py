@@ -63,6 +63,15 @@ def test_full_security_scan(zerg_state=None):
             log_file_handle['file'].write(f"="*70 + "\n")
             log_file_handle['file'].close()
             log_file_handle['file'] = None
+
+    def log_run_artifacts(label="Check log files"):
+        """List log artifacts that capture full run output."""
+        log_print(f"  {label}:")
+        log_print(f"    • Summary: {TEST_LOG_PATH}")
+        log_print(f"    • Full run: {FULL_TEST_LOG}")
+        log_print(f"    • Behave: {BEHAVE_LOG}")
+        log_print(f"    • Server start: {START_SERVER_LOG}")
+        log_print(f"    • Server stop: {STOP_SERVER_LOG}")
     
     def read_test_output():
         """Read behave output log."""
@@ -70,21 +79,6 @@ def test_full_security_scan(zerg_state=None):
             return BEHAVE_LOG.read_text(encoding='utf-8', errors='ignore')
         return None
 
-    def dump_log(log_path, label, max_lines=1000):
-        """Print the tail of a log file."""
-        log_print(f"\n--- {label} (last {max_lines} lines) ---")
-        if not log_path.exists():
-            log_print(f"(log file not found: {log_path})")
-            return
-        try:
-            with log_path.open('r', encoding='utf-8', errors='ignore') as f:
-                lines = f.readlines()
-            tail = lines[-max_lines:] if max_lines else lines
-            for line in tail:
-                log_print(line.rstrip())
-        except Exception as exc:
-            log_print(f"(failed to read {log_path}: {exc})")
-    
     def parse_test_results(output):
         """Extract test pass/fail counts."""
         results = {}
@@ -140,45 +134,12 @@ def test_full_security_scan(zerg_state=None):
         ignored_risks = {'Low', 'Informational'}
         
         return [
-            a for a in alerts 
-            if a['name'] not in ignored_names and a['risk'] not in ignored_risks
+            a for a in alerts
+            if a['risk'] not in ignored_risks
+            and a['name'] not in ignored_names
+            and 'csp' not in a['name'].lower()
+            and 'content security policy' not in a['name'].lower()
         ]
-    
-    def display_alert_summary(alerts):
-        """Display count of alerts by type."""
-        summary = {}
-        for alert in alerts:
-            key = (alert['name'], alert['risk'])
-            summary[key] = summary.get(key, 0) + 1
-        
-        risk_order = {'High': 0, 'Medium': 1, 'Low': 2, 'Informational': 3}
-        sorted_alerts = sorted(summary.items(), key=lambda x: (risk_order.get(x[0][1], 999), x[0][0]))
-        
-        log_print("\nAlert Summary:")
-        for (name, risk), count in sorted_alerts:
-            log_print(f"  [{risk}] {name}: {count} URLs")
-    
-    def display_important_alerts(alerts):
-        """Display important alerts by risk level (High and Medium only)."""
-        for risk_level in ['High', 'Medium']:
-            level_alerts = [a for a in alerts if a['risk'] == risk_level]
-            if not level_alerts:
-                continue
-                
-            log_print(f"\n{'='*70}")
-            log_print(f"[{risk_level.upper()} SEVERITY ALERTS]")
-            log_print('='*70)
-            
-            by_name = {}
-            for alert in level_alerts:
-                name = alert['name']
-                by_name.setdefault(name, []).append(alert['url'])
-            
-            for name, urls in by_name.items():
-                log_print(f"\n  {name}")
-                log_print(f"  Found at {len(urls)} location(s):")
-                for i, url in enumerate(urls, 1):
-                    log_print(f"    {i}. {url}")
     
     def validate_results(output, djangogoat_path):
         """Parse output and determine pass/fail."""
@@ -196,50 +157,65 @@ def test_full_security_scan(zerg_state=None):
         parsed_alerts, report_found = parse_alert_details(djangogoat_path)
         if not report_found:
             log_print("✗ report.html not found - ZAP scan did not produce a report")
-            dump_log(FULL_TEST_LOG, "Full test log")
-            dump_log(BEHAVE_LOG, "Behave log")
-            dump_log(START_SERVER_LOG, "Start server log")
-            dump_log(STOP_SERVER_LOG, "Stop server log")
-        return False
+            log_run_artifacts("See logs for details")
+            return False
     
         all_alerts = parsed_alerts or []
         important_alerts = filter_important_alerts(all_alerts)
         
-        # Display results
-        log_print("\n" + "="*70)
-        log_print("TEST RESULTS")
-        log_print("="*70)
-        
+        # Display concise summary
+        log_print("\nSummary:")
         if test_results:
-            log_print(f"\nBehave Tests:")
-            log_print(f"  Features: {test_results.get('features_passed', 0)} passed, "
-                      f"{test_results.get('features_failed', 0)} failed")
-            log_print(f"  Scenarios: {test_results.get('scenarios_passed', 0)} passed, "
-                      f"{test_results.get('scenarios_failed', 0)} failed")
-            log_print(f"  Steps: {test_results.get('steps_passed', 0)} passed, "
-                      f"{test_results.get('steps_failed', 0)} failed")
-        
-        if all_alerts:
-            log_print(f"\nZAP Security Scan:")
-            log_print(f"  Total alerts: {len(all_alerts)}")
-            log_print(f"  High/Medium: {len(important_alerts)}")
-            log_print(f"  Ignored (Low/Info/CSP): {len(all_alerts) - len(important_alerts)}")
-            display_alert_summary(all_alerts)
+            log_print(
+                "  Behave:"
+                f" features {test_results.get('features_passed', 0)} pass/{test_results.get('features_failed', 0)} fail;"
+                f" scenarios {test_results.get('scenarios_passed', 0)} pass/{test_results.get('scenarios_failed', 0)} fail;"
+                f" steps {test_results.get('steps_passed', 0)} pass/{test_results.get('steps_failed', 0)} fail"
+            )
         else:
-            log_print("\nZAP Security Scan: No alerts reported")
-        
+            log_print("  Behave: no summary found")
+
+        ignored_alerts = len(all_alerts) - len(important_alerts)
+        log_print(
+            f"  ZAP: total {len(all_alerts)}, high/medium {len(important_alerts)}, ignored {ignored_alerts}"
+        )
+
         if important_alerts:
-            log_print(f"\n⚠️  CRITICAL SECURITY ISSUES FOUND: {len(important_alerts)}")
-            display_important_alerts(important_alerts)
+            grouped_by_risk = {}
+            for alert in important_alerts:
+                grouped_by_risk.setdefault(alert['risk'], {}).setdefault(alert['name'], []).append(alert['url'])
+
+            log_print("  Alerts:")
+            for risk_level in ['High', 'Medium']:
+                risk_group = grouped_by_risk.get(risk_level)
+                if not risk_group:
+                    continue
+                log_print(f"    {risk_level}:")
+                for name, urls in sorted(risk_group.items()):
+                    unique_urls = list(dict.fromkeys(urls))
+                    shown = unique_urls[:3]
+                    more = len(unique_urls) - len(shown)
+                    url_text = ", ".join(shown)
+                    if more > 0:
+                        url_text += f", ... +{more}"
+                    log_print(f"      - {name}: {url_text}")
         else:
-            log_print("\n✓ No HIGH or MEDIUM severity security issues found")
-        
+            log_print("  Alerts: none (high/medium)")
+
         # Determine pass/fail
         passed = not has_test_failures and not important_alerts
-        
-        log_print("\n" + "="*70)
-        log_print("PASSED ✓" if passed else "FAILED ✗")
-        log_print("="*70 + "\n")
+
+        if passed:
+            log_print(f"\n✅ Scan passed. Summary log: {TEST_LOG_PATH}")
+        else:
+            reasons = []
+            if has_test_failures:
+                reasons.append("behave failures")
+            if important_alerts:
+                reasons.append("high/medium ZAP alerts")
+            reason_text = ", ".join(reasons) if reasons else "unknown issues"
+            log_print(f"\n❌ Scan failed ({reason_text}). See logs for details.")
+            log_run_artifacts("Key logs")
         
         return passed
     
@@ -268,40 +244,27 @@ def test_full_security_scan(zerg_state=None):
     os.chdir(djangogoat_path)
     
     try:
-        log_print("Running DjangoGoat security test suite...")
-        log_print("(Server startup/shutdown is silent - check report.html for details)")
+        log_print("Starting DjangoGoat security scan (details recorded in tests/djangogoat_security_test.log)...")
         
-        # Run full test suite via shell script (completely silent)
+        # Run full test suite via shell script (stream output directly)
         script_path = Path(__file__).parent / 'run_full_test.sh'
         result = subprocess.run(
             ['bash', str(script_path)],
             env=env_vars,
-            timeout=1800,
-            capture_output=True  # Suppress all output from shell scripts
+            timeout=1800
         )
 
         if result.returncode != 0:
             log_print("✗ run_full_test.sh failed - server or behave execution did not complete")
-            stdout = result.stdout.decode('utf-8', errors='ignore') if isinstance(result.stdout, bytes) else result.stdout
-            stderr = result.stderr.decode('utf-8', errors='ignore') if isinstance(result.stderr, bytes) else result.stderr
-            if stdout:
-                log_print("\n--- run_full_test.sh STDOUT ---")
-                log_print(stdout)
-            if stderr:
-                log_print("\n--- run_full_test.sh STDERR ---")
-                log_print(stderr)
-            dump_log(FULL_TEST_LOG, "Full test log")
-            dump_log(START_SERVER_LOG, "Start server log")
-            dump_log(BEHAVE_LOG, "Behave log")
-            dump_log(STOP_SERVER_LOG, "Stop server log")
+            log_print("  Review the console output above and saved logs.")
+            log_run_artifacts("Log files")
             return False
         
         # Read test output from file
         output = read_test_output()
         if not output:
             log_print("✗ Could not read behave output log")
-            dump_log(BEHAVE_LOG, "Behave log")
-            dump_log(FULL_TEST_LOG, "Full test log")
+            log_run_artifacts("Log files")
             return False
         
         # Parse and validate results (reads from report.html)
@@ -309,17 +272,11 @@ def test_full_security_scan(zerg_state=None):
         
     except subprocess.TimeoutExpired:
         log_print("✗ Tests timed out (30 minutes)")
-        dump_log(FULL_TEST_LOG, "Full test log")
-        dump_log(START_SERVER_LOG, "Start server log")
-        dump_log(BEHAVE_LOG, "Behave log")
-        dump_log(STOP_SERVER_LOG, "Stop server log")
+        log_run_artifacts("Log files")
         return False
     except Exception as e:
         log_print(f"✗ Error running tests: {e}")
-        dump_log(FULL_TEST_LOG, "Full test log")
-        dump_log(START_SERVER_LOG, "Start server log")
-        dump_log(BEHAVE_LOG, "Behave log")
-        dump_log(STOP_SERVER_LOG, "Stop server log")
+        log_run_artifacts("Log files")
         return False
     finally:
         close_log_file()

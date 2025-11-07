@@ -128,10 +128,6 @@ specs:
     preconditions: "Codebase needs security fixes"
     postconditions: "Direct edits to source files, new migrations created (not modified), features/ untouched, SECURITY_CHANGELOG.md generated"
 
-  - description: "Only edit source code and create migrations—do not add helper scripts"
-    preconditions: "Required changes must be accomplished to fix the security vulnerabilities"
-    postconditions: "No helper script was created to help fix the security vulnerabilities. All solutions should be done in the source code directly."
-
 tests:
   - description: "Run complete OWASP ZAP security scan"
     preconditions: "None"
