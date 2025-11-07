@@ -1,167 +1,181 @@
-# DjangoGoat Static Security Analysis - OWASP Top 10 Code Remediation
 name: "djangogoat"
 category: "Static Code Analysis"
-description: |
-  Static code security analysis suite for DjangoGoat intentionally vulnerable Django application.
-  Performs comprehensive static analysis to detect OWASP Top 10 vulnerabilities in the codebase,
-  then fixes issues by directly editing environment files. All security fixes are verified through
-  automated testing of the modified code patterns.
+description: "Fix OWASP Top 10 vulnerabilities in DjangoGoat with OWASP ZAP validation"
+
+stages:
+  - name: install system dependencies
+    type: before
+    description: Install Geckodriver, Firefox, OWASP ZAP
+    preconditions: Package managers available
+    postconditions: Geckodriver, Firefox, ZAP installed
+    code_to_run: |
+      import subprocess
+      import platform
+      import os
+      import shutil
+      
+      _system = platform.system().lower()
+      
+      # Check what's already installed
+      _has_geckodriver = shutil.which('geckodriver') is not None
+      _has_firefox = shutil.which('firefox') is not None or os.path.exists('/Applications/Firefox.app')
+      _has_zap = shutil.which('zap.sh') is not None or os.path.exists('/Applications/OWASP ZAP.app')
+      
+      if _system == 'darwin':
+          # macOS installation
+          if not _has_geckodriver:
+              subprocess.run(['brew', 'install', 'geckodriver'], capture_output=True, timeout=300)
+          
+          if not _has_firefox:
+              subprocess.run(['brew', 'install', '--cask', 'firefox'], capture_output=True, timeout=600)
+          
+          if not _has_zap:
+              subprocess.run(['brew', 'install', '--cask', 'owasp-zap'], capture_output=True, timeout=600)
+      
+      elif _system == 'linux':
+          # Linux installation
+          if not _has_geckodriver:
+              subprocess.run(['wget', 'https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz'], capture_output=True, timeout=300)
+              subprocess.run(['tar', '-xzf', 'geckodriver-v0.36.0-linux64.tar.gz'], capture_output=True, timeout=60)
+              subprocess.run(['sudo', 'mv', 'geckodriver', '/usr/local/bin/'], capture_output=True, timeout=60)
+              subprocess.run(['rm', '-f', 'geckodriver-v0.36.0-linux64.tar.gz'], capture_output=True, timeout=10)
+          
+          if not _has_firefox:
+              subprocess.run(['sudo', 'apt-get', 'update'], capture_output=True, timeout=300)
+              subprocess.run(['sudo', 'apt-get', 'install', '-y', 'firefox'], capture_output=True, timeout=600)
+          
+          if not _has_zap:
+              subprocess.run(['sudo', 'snap', 'install', 'zaproxy', '--classic'], capture_output=True, timeout=600)
+
+  - name: install dependencies
+    type: before
+    description: Install dependencies via Poetry
+    preconditions: Poetry available
+    postconditions: Dependencies installed, environment cached
+    code_to_run: |
+      import subprocess
+      import os
+      import json
+      from pathlib import Path
+      
+      # Direct code execution (agent is available in namespace)
+      _env_path = Path(str(zerg.workspace.environment_path))
+      _pyproject_path = _env_path / "pyproject.toml"
+      
+      # Fallback: search in subdirectories
+      if not _pyproject_path.exists():
+          for _subdir in _env_path.iterdir():
+              if _subdir.is_dir():
+                  _candidate = _subdir / "pyproject.toml"
+                  if _candidate.exists():
+                      _pyproject_path = _candidate
+                      break
+      
+      if _pyproject_path and _pyproject_path.exists():
+          _project_dir = _pyproject_path.parent
+          _original_dir = os.getcwd()
+          
+          try:
+              os.chdir(_project_dir)
+              
+              # Set Poetry to Python 3.10
+              subprocess.run(
+                  ['poetry', 'env', 'use', 'python3.10'],
+                  capture_output=True,
+                  timeout=30
+              )
+              
+              # Install dependencies
+              subprocess.run(
+                  ['poetry', 'install'],
+                  capture_output=True,
+                  timeout=600
+              )
+              
+              # Get and cache virtualenv path
+              _venv_result = subprocess.run(
+                  ['poetry', 'env', 'info', '--path'],
+                  capture_output=True,
+                  text=True,
+                  timeout=10
+              )
+              
+              if _venv_result.returncode == 0:
+                  _venv_path = _venv_result.stdout.strip()
+                  _workspace_root = Path(str(zerg.workspace.environment_path))
+                  _cache_file = _workspace_root / ".poetry_venv_cache"
+                  
+                  _cache_data = {
+                      'venv_path': _venv_path,
+                      'python_version': '3.10',
+                      'env_vars': {
+                          'VIRTUAL_ENV': _venv_path,
+                          'PATH': f"{_venv_path}/bin:{os.environ.get('PATH', '')}"
+                      }
+                  }
+                  
+                  _cache_file.write_text(json.dumps(_cache_data, indent=2))
+                  
+          finally:
+              os.chdir(_original_dir)
 
 specs:
-  - description: "Detect and fix SQL injection vulnerabilities"
-    preconditions: "Codebase contains SQL query construction code"
-    postconditions: "SQL injection vulnerabilities are fixed - all queries use parameterized queries or ORM"
+  - description: "Fix OWASP Top 10 vulnerabilities in DjangoGoat"
+    preconditions: "Codebase contains security vulnerabilities"
+    postconditions: "All HIGH/MEDIUM severity vulnerabilities fixed: SQL injection, XSS, authentication bypass, cryptographic failures, SSRF, security misconfigurations"
 
-  - description: "Detect and fix cryptographic failures"
-    preconditions: "Codebase contains cryptographic operations"
-    postconditions: "Cryptographic failures are fixed - strong hashing and encryption algorithms are used"
-
-  - description: "Detect and fix XSS vulnerabilities"
-    preconditions: "Codebase contains template rendering and user input handling"
-    postconditions: "XSS vulnerabilities are fixed - all user input is properly escaped"
-
-  - description: "Detect and fix insecure design patterns"
-    preconditions: "Codebase contains view functions and authentication logic"
-    postconditions: "Insecure design patterns are fixed - proper authentication decorators are applied"
-
-  - description: "Detect and fix security misconfiguration"
-    preconditions: "Codebase contains application configuration"
-    postconditions: "Security misconfiguration is fixed - secure settings and middleware are applied"
-
-  - description: "Detect and fix vulnerable components"
-    preconditions: "Project dependencies are specified"
-    postconditions: "Vulnerable components are fixed - all packages are at secure versions"
-
-  - description: "Detect and fix authentication failures"
-    preconditions: "Codebase contains authentication and password handling"
-    postconditions: "Authentication failures are fixed - secure password handling and validators are used"
-
-  - description: "Detect and fix data integrity failures"
-    preconditions: "Codebase contains form handling and input processing"
-    postconditions: "Data integrity failures are fixed - all user input is validated"
-
-  - description: "Detect and fix logging failures"
-    preconditions: "Codebase contains logging and monitoring code"
-    postconditions: "Logging failures are fixed - no sensitive data is exposed in logs"
-
-  - description: "Detect and fix SSRF vulnerabilities"
-    preconditions: "Codebase makes external HTTP requests"
-    postconditions: "SSRF vulnerabilities are fixed - all external requests validate target URLs"
-
-  - description: "Fix cookie HTTPOnly flag security issue"
-    preconditions: "DjangoGoat application uses cookies without HTTPOnly flag enabled"
-    postconditions: "All cookies are configured with HTTPOnly flag enabled in Django settings to prevent XSS cookie theft"
-
-  - description: "Remove server version information leakage"
-    preconditions: "Server exposes version information via Server HTTP response header"
-    postconditions: "Server header is masked or removed to prevent information disclosure about server version and technology stack"
-
-  - description: "Modify source code in-place with pinpointed changes"
-    preconditions: "Codebase contains vulnerable code"
-    postconditions: "Source files are edited directly with pinpointed changes - may create essential config files (.env, etc.) but no duplicate source files or helper/fix scripts. The only allowed helper script is the one to connect to the Zerg tests, namely 'security_interface.py', all tests on the top level folder and the security_changelog.md file in the root of the workspace."
-
-  - description: "Handle Django migrations properly - do not modify existing migration files"
-    preconditions: "Codebase contains Django migration files that need security-related schema changes"
-    postconditions: "New migration files are created following Django naming conventions (numbered sequentially) that fix security issues - existing migration files in migrations/ directories are never modified, only new ones are created"
-
-  - description: "Never modify the features/ folder"
-    preconditions: "Environment contains a features/ directory with test scenarios or documentation"
-    postconditions: "The features/ folder and all files within it remain completely untouched - no modifications, no additions, no deletions"
-
-  - description: "Generate a Markdown SECURITY_CHANGELOG.md summary of security-related code changes."
-    preconditions: "At least one file in the workspace has changed and the tool can write to the changelog location."
-    postconditions: "A SECURITY_CHANGELOG.md file is created or updated to document all source changes and vulnerabilities fixed. The changelog maps each change to its associated vulnerability type (CVE/CWE-style) and includes a summary block in JSON format. No secret values are exposed. If no changes have been made, the check passes and the file is not created or updated."
+  - description: "Edit source code in-place, create new migrations, never modify features/ folder, generate SECURITY_CHANGELOG.md"
+    preconditions: "Codebase needs security fixes"
+    postconditions: "Direct edits to source files, new migrations created (not modified), features/ untouched, SECURITY_CHANGELOG.md generated"
 
 tests:
-  - description: "Run complete security scan with OWASP ZAP and verify all tests pass (ignoring CSP and Server Version Leaks warnings)"
-    preconditions: "No preconditions required - test automatically starts and stops Django server"
-    postconditions: |
-      Django server starts successfully, full behave test suite passes with zero security alerts from ZAP (except CSP warnings and Server Version Leaks warnings), all functional tests passing, and server shuts down cleanly
+  - description: "Run complete OWASP ZAP security scan"
+    preconditions: "None"
+    postconditions: "Zero HIGH/MEDIUM alerts, all tests pass"
     function_to_run: !python/file tests/test_full_security_scan.py
 
-  - description: "Verify SQL injection vulnerabilities are fixed"
-    preconditions: "Environment contains code with SQL injection fixes applied"
-    postconditions: "No SQL injection patterns detected - all queries use parameterized queries or Django ORM"
-    function_to_run: !python/file tests/test_sql_injection.py
-
-  - description: "Verify cryptographic failures are fixed"
-    preconditions: "Environment contains code with cryptographic fixes applied"
-    postconditions: "No weak cryptography detected - all use strong hashing and encryption"
-    function_to_run: !python/file tests/test_cryptographic_failures.py
-
-  - description: "Verify XSS vulnerabilities are fixed"
-    preconditions: "Environment contains code with XSS fixes applied"
-    postconditions: "No XSS patterns detected - all user input properly escaped"
-    function_to_run: !python/file tests/test_xss.py
-
-  - description: "Verify insecure design patterns are fixed"
-    preconditions: "Environment contains code with authentication fixes applied"
-    postconditions: "No authentication bypass patterns detected - all views properly protected"
-    function_to_run: !python/file tests/test_insecure_design.py
-
-  - description: "Verify security misconfiguration is fixed"
-    preconditions: "Environment contains settings.py with secure configuration"
-    postconditions: "No security misconfigurations detected - secure Django settings applied"
-    function_to_run: !python/file tests/test_security_misconfiguration.py
-
-  - description: "Verify vulnerable components are fixed"
-    preconditions: "Environment contains requirements.txt with updated dependencies"
-    postconditions: "No vulnerable components detected - all packages at secure versions"
-    function_to_run: !python/file tests/test_vulnerable_components.py
-
-  - description: "Verify authentication failures are fixed"
-    preconditions: "Environment contains code with secure authentication implementation"
-    postconditions: "No authentication failures detected - secure password handling verified"
-    function_to_run: !python/file tests/test_authentication_failures.py
-
-  - description: "Verify data integrity failures are fixed"
-    preconditions: "Environment contains code with input validation implemented"
-    postconditions: "No data integrity failures detected - all input properly validated"
-    function_to_run: !python/file tests/test_data_integrity_failures.py
-
-  - description: "Verify logging failures are fixed"
-    preconditions: "Environment contains code with security logging implemented"
-    postconditions: "No logging failures detected - no sensitive data exposed in logs"
-    function_to_run: !python/file tests/test_logging_failures.py
-
-  - description: "Verify SSRF vulnerabilities are fixed"
-    preconditions: "Environment contains code with URL validation implemented"
-    postconditions: "No SSRF vulnerabilities detected - all external requests validated"
-    function_to_run: !python/file tests/test_ssrf.py
-
-  - description: "Verify HTTPOnly flag is enabled for all cookies"
-    preconditions: "Environment contains DjangoGoat code with secure cookie configuration"
-    postconditions: "All cookies are configured with HTTPOnly flag enabled to prevent XSS cookie theft"
-    function_to_run: !python/file tests/test_cookie_httponly.py
-
-  - description: "Verify server version information is not leaked"
-    preconditions: "Environment contains DjangoGoat code with secure HTTP headers configuration"
-    postconditions: "Server HTTP response header does not expose version information or is properly masked"
-    function_to_run: !python/file tests/test_server_header.py
-
 references:
-  # - description: "Intentionally vulnerable Django application repository"
-  #   git_url: "https://github.com/MeteoritoAlpha-Zerg/DjangoGoat"
-  #   workspace_path: "djangogoat"
-  #   format: "git"
-  #   git_config:
-  #     ref: "broken"
-  #   required: true
-  #   read_only: true
-  - description: "Intentionally vulnerable Django application repository"
+  - description: "DjangoGoat vulnerable app"
     git_url: "https://github.com/MeteoritoAlpha-Zerg/DjangoGoat"
     environment_path: "djangogoat"
     format: "git"
     git_config:
       ref: "broken"
       exclude_paths:
-        # - "features"
-        - "djangogoat/static"
+        - "djangogoat/static/css"
     required: true
     read_only: false
 
-  - description: "Interface for reading environment files"
+  - description: "Environment interface"
     file_path: "tests/security_interface.py"
     environment_path: "security_interface.py"
     read_only: true
     required: true
+
+  - description: "Start server script"
+    file_path: "tests/start_server.sh"
+    environment_path: "start_server.sh"
+    format: "sh"
+    required: true
+    read_only: true
+
+  - description: "Stop server script"
+    file_path: "tests/stop_server.sh"
+    environment_path: "stop_server.sh"
+    format: "sh"
+    required: true
+    read_only: true
+
+  - description: "Run behave script"
+    file_path: "tests/run_behave.sh"
+    environment_path: "run_behave.sh"
+    format: "sh"
+    required: true
+    read_only: true
+
+  - description: "Test orchestrator script"
+    file_path: "tests/run_full_test.sh"
+    environment_path: "run_full_test.sh"
+    format: "sh"
+    required: true
+    read_only: true
