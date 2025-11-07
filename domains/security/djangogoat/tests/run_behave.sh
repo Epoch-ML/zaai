@@ -2,7 +2,12 @@
 # Run behave tests and output results
 # Usage: ./run_behave.sh
 
-# Run behave (output will be captured by caller)
-poetry run behave
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_FILE="$SCRIPT_DIR/djangogoat_behave.log"
+
+: > "$LOG_FILE"
+
+# Run behave and log output
+poetry run behave >>"$LOG_FILE" 2>&1
 exit $?
 

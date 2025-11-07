@@ -13,13 +13,19 @@ from datetime import datetime
 def test_full_security_scan(zerg_state=None):
     """
     Run the full DjangoGoat test suite with OWASP ZAP and validate results.
-    
+        
     Returns:
         True if all tests pass and no vulnerabilities found, False otherwise
     """
     
-    # Global log file handle
+    # Global log file handle and paths
     log_file_handle = {'file': None}
+    LOG_DIR = Path(__file__).parent
+    TEST_LOG_PATH = LOG_DIR / 'djangogoat_security_test.log'
+    START_SERVER_LOG = LOG_DIR / 'djangogoat_start_server.log'
+    STOP_SERVER_LOG = LOG_DIR / 'djangogoat_stop_server.log'
+    BEHAVE_LOG = LOG_DIR / 'djangogoat_behave.log'
+    FULL_TEST_LOG = LOG_DIR / 'djangogoat_full_test.log'
     
     def log_print(*args, **kwargs):
         """Print to console and append to log file."""
@@ -59,11 +65,25 @@ def test_full_security_scan(zerg_state=None):
             log_file_handle['file'] = None
     
     def read_test_output():
-        """Read test output from temp file."""
-        output_file = Path('/tmp/djangogoat_test_output.txt')
-        if output_file.exists():
-            return output_file.read_text()
+        """Read behave output log."""
+        if BEHAVE_LOG.exists():
+            return BEHAVE_LOG.read_text(encoding='utf-8', errors='ignore')
         return None
+
+    def dump_log(log_path, label, max_lines=1000):
+        """Print the tail of a log file."""
+        log_print(f"\n--- {label} (last {max_lines} lines) ---")
+        if not log_path.exists():
+            log_print(f"(log file not found: {log_path})")
+            return
+        try:
+            with log_path.open('r', encoding='utf-8', errors='ignore') as f:
+                lines = f.readlines()
+            tail = lines[-max_lines:] if max_lines else lines
+            for line in tail:
+                log_print(line.rstrip())
+        except Exception as exc:
+            log_print(f"(failed to read {log_path}: {exc})")
     
     def parse_test_results(output):
         """Extract test pass/fail counts."""
@@ -84,10 +104,10 @@ def test_full_security_scan(zerg_state=None):
         return results
     
     def parse_alert_details(djangogoat_path):
-        """Parse alerts from HTML report."""
+        """Parse alerts from HTML report. Returns (alerts_list, report_found_bool)."""
         report_path = Path(djangogoat_path) / 'report.html'
         if not report_path.exists():
-            return []
+            return None, False
         
         try:
             content = report_path.read_text(encoding='utf-8')
@@ -107,9 +127,9 @@ def test_full_security_scan(zerg_state=None):
                 for url in urls:
                     alerts.append({'name': name, 'risk': risk, 'url': url.strip()})
             
-            return alerts
+            return alerts, True
         except Exception:
-            return []
+            return None, False
     
     def filter_important_alerts(alerts):
         """Filter out ignored alerts (CSP, Low, and Informational severity)."""
@@ -145,7 +165,9 @@ def test_full_security_scan(zerg_state=None):
             if not level_alerts:
                 continue
                 
-            log_print(f"\n[{risk_level.upper()}]")
+            log_print(f"\n{'='*70}")
+            log_print(f"[{risk_level.upper()} SEVERITY ALERTS]")
+            log_print('='*70)
             
             by_name = {}
             for alert in level_alerts:
@@ -153,9 +175,10 @@ def test_full_security_scan(zerg_state=None):
                 by_name.setdefault(name, []).append(alert['url'])
             
             for name, urls in by_name.items():
-                log_print(f"\n  • {name}")
-                for url in urls:
-                    log_print(f"      {url}")
+                log_print(f"\n  {name}")
+                log_print(f"  Found at {len(urls)} location(s):")
+                for i, url in enumerate(urls, 1):
+                    log_print(f"    {i}. {url}")
     
     def validate_results(output, djangogoat_path):
         """Parse output and determine pass/fail."""
@@ -170,7 +193,16 @@ def test_full_security_scan(zerg_state=None):
         
         # Parse ZAP alerts directly from report.html
         log_print("\nParsing ZAP security report...")
-        all_alerts = parse_alert_details(djangogoat_path)
+        parsed_alerts, report_found = parse_alert_details(djangogoat_path)
+        if not report_found:
+            log_print("✗ report.html not found - ZAP scan did not produce a report")
+            dump_log(FULL_TEST_LOG, "Full test log")
+            dump_log(BEHAVE_LOG, "Behave log")
+            dump_log(START_SERVER_LOG, "Start server log")
+            dump_log(STOP_SERVER_LOG, "Stop server log")
+        return False
+    
+        all_alerts = parsed_alerts or []
         important_alerts = filter_important_alerts(all_alerts)
         
         # Display results
@@ -194,13 +226,13 @@ def test_full_security_scan(zerg_state=None):
             log_print(f"  Ignored (Low/Info/CSP): {len(all_alerts) - len(important_alerts)}")
             display_alert_summary(all_alerts)
         else:
-            log_print(f"\nZAP Security Scan: No report.html found")
+            log_print("\nZAP Security Scan: No alerts reported")
         
         if important_alerts:
-            log_print("\n" + "="*70)
-            log_print(f"CRITICAL ISSUES: {len(important_alerts)} (High/Medium severity)")
-            log_print("="*70)
+            log_print(f"\n⚠️  CRITICAL SECURITY ISSUES FOUND: {len(important_alerts)}")
             display_important_alerts(important_alerts)
+        else:
+            log_print("\n✓ No HIGH or MEDIUM severity security issues found")
         
         # Determine pass/fail
         passed = not has_test_failures and not important_alerts
@@ -219,10 +251,9 @@ def test_full_security_scan(zerg_state=None):
     if not djangogoat_path.exists():
         print("✗ DjangoGoat directory not found")
         return False
-    
+        
     # Open log file
-    log_path = Path('/tmp/djangogoat_test_log.txt')
-    open_log_file(log_path)
+    open_log_file(TEST_LOG_PATH)
     
     # Setup environment
     env_vars = os.environ.copy()
@@ -248,11 +279,29 @@ def test_full_security_scan(zerg_state=None):
             timeout=1800,
             capture_output=True  # Suppress all output from shell scripts
         )
+
+        if result.returncode != 0:
+            log_print("✗ run_full_test.sh failed - server or behave execution did not complete")
+            stdout = result.stdout.decode('utf-8', errors='ignore') if isinstance(result.stdout, bytes) else result.stdout
+            stderr = result.stderr.decode('utf-8', errors='ignore') if isinstance(result.stderr, bytes) else result.stderr
+            if stdout:
+                log_print("\n--- run_full_test.sh STDOUT ---")
+                log_print(stdout)
+            if stderr:
+                log_print("\n--- run_full_test.sh STDERR ---")
+                log_print(stderr)
+            dump_log(FULL_TEST_LOG, "Full test log")
+            dump_log(START_SERVER_LOG, "Start server log")
+            dump_log(BEHAVE_LOG, "Behave log")
+            dump_log(STOP_SERVER_LOG, "Stop server log")
+            return False
         
         # Read test output from file
         output = read_test_output()
         if not output:
-            log_print("✗ Could not read test output from /tmp/djangogoat_test_output.txt")
+            log_print("✗ Could not read behave output log")
+            dump_log(BEHAVE_LOG, "Behave log")
+            dump_log(FULL_TEST_LOG, "Full test log")
             return False
         
         # Parse and validate results (reads from report.html)
@@ -260,9 +309,17 @@ def test_full_security_scan(zerg_state=None):
         
     except subprocess.TimeoutExpired:
         log_print("✗ Tests timed out (30 minutes)")
+        dump_log(FULL_TEST_LOG, "Full test log")
+        dump_log(START_SERVER_LOG, "Start server log")
+        dump_log(BEHAVE_LOG, "Behave log")
+        dump_log(STOP_SERVER_LOG, "Stop server log")
         return False
     except Exception as e:
         log_print(f"✗ Error running tests: {e}")
+        dump_log(FULL_TEST_LOG, "Full test log")
+        dump_log(START_SERVER_LOG, "Start server log")
+        dump_log(BEHAVE_LOG, "Behave log")
+        dump_log(STOP_SERVER_LOG, "Stop server log")
         return False
     finally:
         close_log_file()
