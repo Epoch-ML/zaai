@@ -56,6 +56,7 @@ stages:
       import subprocess
       import os
       import json
+      import shutil
       from pathlib import Path
       
       # Direct code execution (agent is available in namespace)
@@ -77,27 +78,50 @@ stages:
           
           try:
               os.chdir(_project_dir)
-              
+
+              _poetry_env = os.environ.copy()
+              _poetry_env.setdefault('POETRY_VIRTUALENVS_CREATE', 'true')
+              _poetry_env.setdefault('POETRY_VIRTUALENVS_IN_PROJECT', 'false')
+
+              _venv_cache_dir = Path('/tmp/poetry')
+              _venv_cache_dir.mkdir(parents=True, exist_ok=True)
+
+              _local_venv = _project_dir / '.venv'
+              if _local_venv.exists():
+                  try:
+                      shutil.rmtree(_local_venv)
+                  except OSError:
+                      pass
+
+              _cached_marker = _project_dir / '.python-version'
+              with _cached_marker.open('w') as _marker_file:
+                  _marker_file.write('3.10.0')
+
+              _poetry_env['POETRY_VIRTUALENVS_PATH'] = str(_venv_cache_dir)
+
               # Set Poetry to Python 3.10
               subprocess.run(
                   ['poetry', 'env', 'use', 'python3.10'],
                   capture_output=True,
-                  timeout=30
+                  timeout=30,
+                  env=_poetry_env
               )
-              
+
               # Install dependencies
               subprocess.run(
                   ['poetry', 'install'],
                   capture_output=True,
-                  timeout=600
+                  timeout=600,
+                  env=_poetry_env
               )
-              
+
               # Get and cache virtualenv path
               _venv_result = subprocess.run(
                   ['poetry', 'env', 'info', '--path'],
                   capture_output=True,
                   text=True,
-                  timeout=10
+                  timeout=10,
+                  env=_poetry_env
               )
               
               if _venv_result.returncode == 0:
