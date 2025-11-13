@@ -1,13 +1,15 @@
 name: "python"
 category: "Python Environment"
 description: |
-  Test Python file loading with module structure for indexing/summarization/concatenation testing
+  A comprehensive data analytics platform with multiple interconnected modules
+  for data ingestion, processing, analysis, and visualization. Demonstrates
+  proper module structure with cross-references and imports.
 
 specs: []
-
 tests: []
 
 references:
+  # Main entry point
   - description: "Main application entry point"
     file_path: "main.py"
     environment_path: "src/main.py"
@@ -15,18 +17,202 @@ references:
     required: true
     read_only: true
 
-  - description: "Data processing module"
-    file_path: "data_processor.py"
-    environment_path: "src/extra/data_processor.py"
+  # Core module files
+  - description: "Core base classes and interfaces"
+    file_path: "core/base.py"
+    environment_path: "src/core/base.py"
     format: "python"
     required: true
     read_only: true
 
-  - description: "Utility functions module"
-    file_path: "utils.py"
-    environment_path: "src/extra/utils.py"
+  - description: "Core exception definitions"
+    file_path: "core/exceptions.py"
+    environment_path: "src/core/exceptions.py"
     format: "python"
     required: true
     read_only: true
 
-configs: []
+  - description: "Core validation utilities"
+    file_path: "core/validators.py"
+    environment_path: "src/core/validators.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Core configuration management"
+    file_path: "core/config.py"
+    environment_path: "src/core/config.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Core component registry"
+    file_path: "core/registry.py"
+    environment_path: "src/core/registry.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  # Ingestion module files
+  - description: "Data source definitions"
+    file_path: "ingestion/sources.py"
+    environment_path: "src/ingestion/sources.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Data source connectors"
+    file_path: "ingestion/connectors.py"
+    environment_path: "src/ingestion/connectors.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Data format parsers"
+    file_path: "ingestion/parsers.py"
+    environment_path: "src/ingestion/parsers.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Schema detection and validation"
+    file_path: "ingestion/schema.py"
+    environment_path: "src/ingestion/schema.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Data loader orchestration"
+    file_path: "ingestion/loader.py"
+    environment_path: "src/ingestion/loader.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  # Processing module files
+  - description: "Main data processor"
+    file_path: "processing/processor.py"
+    environment_path: "src/processing/processor.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Data transformation utilities"
+    file_path: "processing/transformers.py"
+    environment_path: "src/processing/transformers.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Data aggregation functions"
+    file_path: "processing/aggregators.py"
+    environment_path: "src/processing/aggregators.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Processing pipeline management"
+    file_path: "processing/pipeline.py"
+    environment_path: "src/processing/pipeline.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Processing cache implementation"
+    file_path: "processing/cache.py"
+    environment_path: "src/processing/cache.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  # Visualization module files
+  - description: "Chart generation utilities"
+    file_path: "visualization/charts.py"
+    environment_path: "src/visualization/charts.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Report generation and building"
+    file_path: "visualization/reports.py"
+    environment_path: "src/visualization/reports.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Data export utilities"
+    file_path: "visualization/exporters.py"
+    environment_path: "src/visualization/exporters.py"
+    format: "python"
+    required: true
+    read_only: true
+
+  - description: "Visualization templates"
+    file_path: "visualization/templates.py"
+    environment_path: "src/visualization/templates.py"
+    format: "python"
+    required: true
+    read_only: true
+
+configs: 
+  - name: "default_config"
+    description: "Default platform configuration"
+    value:
+      platform:
+        name: "Analytics Platform"
+        version: "1.0.0"
+      processing:
+        max_workers: 4
+        batch_size: 1000
+        cache_enabled: true
+      visualization:
+        default_theme: "modern"
+        export_formats: ["pdf", "html", "png"]
+        
+  - name: "project_structure"
+    description: "project structure"
+    value: 
+      modules:
+        - name: "core"
+          description: "Core functionality and base classes"
+          files:
+            - "base.py"
+            - "exceptions.py"
+            - "validators.py"
+            - "config.py"
+            - "registry.py"
+        
+        - name: "ingestion"
+          description: "Data ingestion and source management"
+          files:
+            - "sources.py"
+            - "connectors.py"
+            - "parsers.py"
+            - "schema.py"
+            - "loader.py"
+        
+        - name: "processing"
+          description: "Data processing and transformation"
+          files:
+            - "processor.py"
+            - "transformers.py"
+            - "aggregators.py"
+            - "pipeline.py"
+            - "cache.py"
+        
+        - name: "visualization"
+          description: "Data visualization and reporting"
+          files:
+            - "charts.py"
+            - "reports.py"
+            - "exporters.py"
+            - "templates.py"
+
+  - name: "dependencies"
+    description: "module dependencies"
+    value: [
+      "numpy",
+      "pandas",
+      "pydantic",
+      "typing_extensions"
+    ]
