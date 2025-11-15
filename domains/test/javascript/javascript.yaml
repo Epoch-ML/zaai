@@ -1,0 +1,239 @@
+name: "javascript"
+category: "JavaScript Environment"
+description: |
+  A comprehensive data analytics platform built with pure JavaScript
+  featuring multiple interconnected modules for data ingestion, processing,
+  analysis, and visualization. Demonstrates proper module structure with
+  ES6 imports and cross-module dependencies.
+
+specs:
+  - "Node.js 18+ required"
+  - "ES2022 module syntax"
+  - "Async/await support"
+
+tests:
+  - "Unit tests with Jest"
+  - "Integration tests for cross-module functionality"
+  - "Performance benchmarks"
+
+references:
+  # Main entry point
+  - description: "Main application entry point"
+    file_path: "index.js"
+    environment_path: "src/index.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  # Core module files
+  - description: "Core base classes and interfaces"
+    file_path: "core/base.js"
+    environment_path: "src/core/base.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Core exception definitions"
+    file_path: "core/exceptions.js"
+    environment_path: "src/core/exceptions.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Core validation utilities"
+    file_path: "core/validators.js"
+    environment_path: "src/core/validators.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Core configuration management"
+    file_path: "core/config.js"
+    environment_path: "src/core/config.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Core component registry"
+    file_path: "core/registry.js"
+    environment_path: "src/core/registry.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  # Ingestion module files
+  - description: "Data source definitions"
+    file_path: "ingestion/sources.js"
+    environment_path: "src/ingestion/sources.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Data source connectors"
+    file_path: "ingestion/connectors.js"
+    environment_path: "src/ingestion/connectors.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Data format parsers"
+    file_path: "ingestion/parsers.js"
+    environment_path: "src/ingestion/parsers.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Schema detection and validation"
+    file_path: "ingestion/schema.js"
+    environment_path: "src/ingestion/schema.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Data loader orchestration"
+    file_path: "ingestion/loader.js"
+    environment_path: "src/ingestion/loader.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  # Processing module files
+  - description: "Main data processor"
+    file_path: "processing/processor.js"
+    environment_path: "src/processing/processor.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Data transformation utilities"
+    file_path: "processing/transformers.js"
+    environment_path: "src/processing/transformers.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Data aggregation functions"
+    file_path: "processing/aggregators.js"
+    environment_path: "src/processing/aggregators.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Processing pipeline management"
+    file_path: "processing/pipeline.js"
+    environment_path: "src/processing/pipeline.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Processing cache implementation"
+    file_path: "processing/cache.js"
+    environment_path: "src/processing/cache.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  # Visualization module files
+  - description: "Chart generation utilities"
+    file_path: "visualization/charts.js"
+    environment_path: "src/visualization/charts.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Report generation and building"
+    file_path: "visualization/reports.js"
+    environment_path: "src/visualization/reports.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Data export utilities"
+    file_path: "visualization/exporters.js"
+    environment_path: "src/visualization/exporters.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  - description: "Visualization templates"
+    file_path: "visualization/templates.js"
+    environment_path: "src/visualization/templates.js"
+    format: "javascript"
+    required: true
+    read_only: true
+
+  # Package configuration
+  - description: "NPM package configuration"
+    file_path: "package.json"
+    environment_path: "package.json"
+    format: "json"
+    required: true
+    read_only: true
+
+configs: 
+  - name: "default_config"
+    description: "Default platform configuration"
+    value:
+      platform:
+        name: "Analytics Platform JS"
+        version: "1.0.0"
+      processing:
+        maxWorkers: 4
+        batchSize: 1000
+        cacheEnabled: true
+      visualization:
+        defaultTheme: "modern"
+        exportFormats: ["pdf", "html", "png"]
+        
+  - name: "project_structure"
+    description: "project structure"
+    value: 
+      modules:
+        - name: "core"
+          description: "Core functionality and base classes"
+          files:
+            - "base.js"
+            - "exceptions.js"
+            - "validators.js"
+            - "config.js"
+            - "registry.js"
+        
+        - name: "ingestion"
+          description: "Data ingestion and source management"
+          files:
+            - "sources.js"
+            - "connectors.js"
+            - "parsers.js"
+            - "schema.js"
+            - "loader.js"
+        
+        - name: "processing"
+          description: "Data processing and transformation"
+          files:
+            - "processor.js"
+            - "transformers.js"
+            - "aggregators.js"
+            - "pipeline.js"
+            - "cache.js"
+        
+        - name: "visualization"
+          description: "Data visualization and reporting"
+          files:
+            - "charts.js"
+            - "reports.js"
+            - "exporters.js"
+            - "templates.js"
+
+  - name: "dependencies"
+    description: "NPM dependencies"
+    value:
+      dependencies:
+        - "express"
+        - "lodash"
+        - "axios"
+        - "csv-parser"
+        - "xml2js"
+      devDependencies:
+        - "jest"
+        - "nodemon"
+        - "eslint"
