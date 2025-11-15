@@ -1,14 +1,8 @@
 #!/bin/bash
-# Start Django server for testing (silent mode)
+# Start Django server for testing
 # Usage: ./start_server.sh [port]
 
 PORT=${1:-3572}
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_FILE="$SCRIPT_DIR/djangogoat_start_server.log"
-
-# Truncate log at start and mirror stdout/stderr to file
-: > "$LOG_FILE"
-exec > >(tee -a "$LOG_FILE") 2>&1
 
 # Kill any existing server on the port
 if command -v lsof &> /dev/null; then

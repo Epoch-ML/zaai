@@ -5,9 +5,9 @@ description: "Fix OWASP Top 10 vulnerabilities in DjangoGoat with OWASP ZAP vali
 stages:
   - name: install system dependencies
     type: before
-    description: Install Geckodriver, Firefox, OWASP ZAP
+    description: Install Java, Python 3.10, Geckodriver, Firefox, OWASP ZAP
     preconditions: Package managers available
-    postconditions: Geckodriver, Firefox, ZAP installed
+    postconditions: Java, Python 3.10, Geckodriver, Firefox, ZAP installed
     code_to_run: |
       import subprocess
       import platform
@@ -17,12 +17,54 @@ stages:
       _system = platform.system().lower()
       
       # Check what's already installed
+      _pyenv_root = os.path.expanduser('~/.pyenv')
+      _pyenv_bin = os.path.join(_pyenv_root, 'bin', 'pyenv')
+      _has_java = shutil.which('java') is not None
       _has_geckodriver = shutil.which('geckodriver') is not None
       _has_firefox = shutil.which('firefox') is not None or os.path.exists('/Applications/Firefox.app')
       _has_zap = shutil.which('zap.sh') is not None or os.path.exists('/Applications/OWASP ZAP.app')
       
+      # Install pyenv and Python 3.10
+      if not os.path.exists(_pyenv_bin):
+          subprocess.run(['bash', '-c', 'curl https://pyenv.run | bash'], timeout=300)
+      
+      # Initialize pyenv - update global PATH so it persists for all subsequent commands
+      os.environ['PYENV_ROOT'] = _pyenv_root
+      _pyenv_bin_dir = os.path.join(_pyenv_root, 'bin')
+      _pyenv_shims_dir = os.path.join(_pyenv_root, 'shims')
+      _current_path = os.environ.get('PATH', '')
+      _paths_to_add = []
+      if os.path.exists(_pyenv_bin_dir) and _pyenv_bin_dir not in _current_path:
+          _paths_to_add.append(_pyenv_bin_dir)
+      if os.path.exists(_pyenv_shims_dir) and _pyenv_shims_dir not in _current_path:
+          _paths_to_add.append(_pyenv_shims_dir)
+      if _paths_to_add:
+          os.environ['PATH'] = f"{':'.join(_paths_to_add)}:{_current_path}"
+      
+      # Initialize pyenv via bash to get full functionality
+      if os.path.exists(_pyenv_bin):
+          # Force install Python 3.10 - uses global os.environ which has PATH updated
+          subprocess.run([_pyenv_bin, 'install', '--force', '3.10'], capture_output=True, timeout=1800, env=os.environ)
+          
+          # List all installed 3.10 versions and set as global
+          _versions_result = subprocess.run(
+              [_pyenv_bin, 'versions', '--bare'],
+              capture_output=True,
+              text=True,
+              timeout=10,
+              env=os.environ
+          )
+          _installed_310 = [v.strip() for v in _versions_result.stdout.split('\n') if v.strip().startswith('3.10')]
+          
+          if _installed_310:
+              _version_to_use = _installed_310[0]
+              subprocess.run([_pyenv_bin, 'global', _version_to_use], capture_output=True, timeout=10, env=os.environ)
+      
       if _system == 'darwin':
           # macOS installation
+          if not _has_java:
+              subprocess.run(['brew', 'install', 'openjdk'], capture_output=True, timeout=600)
+          
           if not _has_geckodriver:
               subprocess.run(['brew', 'install', 'geckodriver'], capture_output=True, timeout=300)
           
@@ -34,6 +76,10 @@ stages:
       
       elif _system == 'linux':
           # Linux installation
+          if not _has_java:
+              subprocess.run(['sudo', 'apt-get', 'update'], capture_output=True, timeout=300)
+              subprocess.run(['sudo', 'apt-get', 'install', '-y', 'default-jre'], capture_output=True, timeout=600)
+          
           if not _has_geckodriver:
               subprocess.run(['wget', 'https://github.com/mozilla/geckodriver/releases/download/v0.36.0/geckodriver-v0.36.0-linux64.tar.gz'], capture_output=True, timeout=300)
               subprocess.run(['tar', '-xzf', 'geckodriver-v0.36.0-linux64.tar.gz'], capture_output=True, timeout=60)
@@ -93,13 +139,9 @@ stages:
                   except OSError:
                       pass
 
-              _cached_marker = _project_dir / '.python-version'
-              with _cached_marker.open('w') as _marker_file:
-                  _marker_file.write('3.10.0')
-
               _poetry_env['POETRY_VIRTUALENVS_PATH'] = str(_venv_cache_dir)
 
-              # Set Poetry to Python 3.10
+              # Set Poetry to Python 3.10 (pyenv global should make python3.10 available)
               subprocess.run(
                   ['poetry', 'env', 'use', 'python3.10'],
                   capture_output=True,
@@ -176,30 +218,17 @@ references:
     read_only: true
     required: true
 
-  - description: "Start server script"
-    file_path: "tests/start_server.sh"
-    environment_path: "start_server.sh"
-    format: "sh"
+  - description: "Helper scripts for running with tests"
+    file_path: "tests/*.sh"
+    environment_path: "."
+    format: "pattern"
     required: true
     read_only: true
 
-  - description: "Stop server script"
-    file_path: "tests/stop_server.sh"
-    environment_path: "stop_server.sh"
-    format: "sh"
-    required: true
-    read_only: true
+  - description: "Remove scripts from prompt context"
+    environment_path: "**/*.sh"
+    format: "exclude-pattern"
 
-  - description: "Run behave script"
-    file_path: "tests/run_behave.sh"
-    environment_path: "run_behave.sh"
-    format: "sh"
-    required: true
-    read_only: true
-
-  - description: "Test orchestrator script"
-    file_path: "tests/run_full_test.sh"
-    environment_path: "run_full_test.sh"
-    format: "sh"
-    required: true
-    read_only: true
+  - description: "Remove report from prompt context"
+    environment_path: "**/report.html"
+    format: "exclude-pattern"
