@@ -1,6 +1,6 @@
 name: "djangogoat"
 category: "Static Code Analysis"
-description: "Fix OWASP Top 10 vulnerabilities in DjangoGoat with OWASP ZAP validation"
+description: "Fix all SQL Injection, XSS, Authentication, Cryptographic, SSRF, Security Misconfiguration, Broken Access Control, Input Validation, File Upload, Deserialization, Dependency, and Rate Limiting vulnerabilities in DjangoGoat with OWASP ZAP validation"
 
 stages:
   - name: install system dependencies
@@ -186,18 +186,62 @@ stages:
               os.chdir(_original_dir)
 
 specs:
-  - description: "Fix OWASP Top 10 vulnerabilities in DjangoGoat"
-    preconditions: "Codebase contains security vulnerabilities"
-    postconditions: "All HIGH/MEDIUM severity vulnerabilities fixed: SQL injection, XSS, authentication bypass, cryptographic failures, SSRF, security misconfigurations"
+  - description: "Fix all SQL Injection vulnerabilities"
+    preconditions: "Code contains raw SQL queries or string concatenation for database operations"
+    postconditions: "ALL database queries use Django ORM with parameterized filters. NO raw SQL with string concatenation. NO .extra() or .raw() without proper parameterization. Use .filter(), .get(), .exclude() with Django ORM objects only. Authentication MUST use Django's authenticate(username=..., password=...) function, NEVER direct SQL for user lookup"
+
+  - description: "Fix all Cross-Site Scripting (XSS) vulnerabilities"
+    preconditions: "Code renders user input without escaping or uses |safe filter inappropriately"
+    postconditions: "ALL user-supplied data rendered in templates uses Django's automatic escaping (default). NO |safe filter on untrusted user input. Use |escape explicitly when needed. Content Security Policy headers configured. Template variables from request.POST, request.GET, or user data MUST be escaped unless explicitly validated and sanitized"
+
+  - description: "Fix all Authentication and Session Management vulnerabilities"
+    preconditions: "Code bypasses Django authentication, uses weak password hashing, or has session issues"
+    postconditions: "ALL authentication uses Django's authenticate() and login() functions. NO custom authentication logic that bypasses Django's security. PASSWORD_HASHERS must use Argon2PasswordHasher, PBKDF2PasswordHasher, or BCryptSHA256PasswordHasher. NO MD5, SHA1, or unsalted hashing. Session cookies configured securely (SECURE=True in production, HttpOnly=True always). AuthenticationMiddleware MUST be in MIDDLEWARE. @login_required decorator used for protected views"
+
+  - description: "Fix all Cryptographic Failures"
+    preconditions: "Code uses weak encryption, hardcoded secrets, or insecure communication"
+    postconditions: "NO hardcoded SECRET_KEY, passwords, or API keys in source code. Use environment variables for secrets. ALL passwords hashed with strong algorithms (Argon2, PBKDF2, BCrypt). HTTPS enforced in production (SECURE_SSL_REDIRECT=True). SESSION_COOKIE_SECURE=True and CSRF_COOKIE_SECURE=True in production. NO sensitive data logged to files or console"
+
+  - description: "Fix all Server-Side Request Forgery (SSRF) vulnerabilities"
+    preconditions: "Code makes server-side HTTP requests using user-supplied URLs without validation"
+    postconditions: "ALL server-side HTTP requests validate and whitelist allowed URLs/domains. NO requests to internal IP ranges (127.0.0.1, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16) from user input. URL scheme validation (only http/https allowed). Domain whitelist validation before making requests"
+
+  - description: "Fix all Security Misconfiguration vulnerabilities"
+    preconditions: "Django settings contain insecure defaults or missing security headers"
+    postconditions: "DEBUG=False in production. ALLOWED_HOSTS explicitly set (not ['*']). SECURE_BROWSER_XSS_FILTER=True, SECURE_CONTENT_TYPE_NOSNIFF=True. X_FRAME_OPTIONS='DENY'. CSRF middleware enabled and CSRF_TRUSTED_ORIGINS configured. SecurityMiddleware in MIDDLEWARE. NO exposed sensitive information in error messages. Proper CORS configuration if needed"
+
+  - description: "Fix all Broken Access Control     vulnerabilities (OWASP A01)"
+    preconditions: "Code lacks proper authorization checks, allows insecure direct object references, or privilege escalation"
+    postconditions: "ALL views that access user-specific data verify ownership/authorization. NO insecure direct object references (IDOR) - verify user has permission to access object by ID. Use Django's @login_required, @permission_required, or custom permission checks on ALL protected endpoints. NO views that allow users to access other users' data by manipulating URL parameters. Business logic MUST verify user permissions before allowing actions. Horizontal access control (same privilege level) and vertical access control (different privilege levels) enforced. NO views that check authentication but skip authorization checks"
+
+  - description: "Fix all Input Validation vulnerabilities"
+    preconditions: "Code accepts user input without proper validation, type checking, or business logic validation"
+    postconditions: "ALL user input validated for type, length, format, and range before processing. Use Django Forms or FormSets with proper validators. NO trust of client-side validation alone. Server-side validation REQUIRED for all input. Validate file uploads for type, size, and content. Validate numeric inputs are within expected ranges. Validate string inputs match expected patterns (email, phone, etc.). Sanitize file paths to prevent directory traversal (../../../). Validate business logic rules (e.g., dates in valid range, amounts within limits). Use Django's built-in validators and create custom validators where needed"
+
+  - description: "Fix all Insecure File Upload vulnerabilities"
+    preconditions: "Code accepts file uploads without proper validation, type checking, or secure storage"
+    postconditions: "ALL file uploads validate file type using MIME type checking (not just extension). File size limits enforced. NO executable files (.exe, .sh, .py, .php) stored in web-accessible directories. Uploaded files stored outside web root or with randomized names. Path traversal prevented (no ../../../ in filenames). Content-Type validation matches file extension. Virus scanning recommended for production. File upload directory permissions restrictive (no execution permissions). Use Django's FileField/ImageField with proper validators and storage backends"
+
+  - description: "Fix all Insecure Deserialization vulnerabilities"
+    preconditions: "Code deserializes untrusted data or uses insecure serialization formats"
+    postconditions: "NO deserialization of user-controlled data using pickle or other insecure formats. Use JSON serialization for user data. Session data deserialization handled securely by Django's session framework. NO custom deserialization logic that trusts user input. Validate and sanitize data before deserialization. Use Django's built-in serializers (JSON, YAML) instead of pickle for user data"
+
+  - description: "Fix all Dependency Vulnerabilities"
+    preconditions: "Code uses outdated packages with known CVEs or vulnerable dependencies"
+    postconditions: "ALL dependencies updated to latest secure versions without known CVEs. Check dependencies with security scanners (pip-audit, safety, etc.). pyproject.toml or requirements.txt specifies exact versions or version ranges that exclude vulnerable versions. Regular dependency updates scheduled. Use Poetry lock file to ensure consistent, audited dependency versions"
+
+  - description: "Fix all Rate Limiting and DoS vulnerabilities"
+    preconditions: "Code lacks rate limiting on authentication, API endpoints, or user actions"
+    postconditions: "Login endpoints protected with rate limiting (e.g., max 5 attempts per 15 minutes per IP). API endpoints have reasonable rate limits to prevent abuse. Use Django's caching framework or middleware for rate limiting. Consider django-ratelimit or similar packages. NO endpoints that can be abused for denial of service (unlimited expensive operations). Request size limits configured. Timeout limits on long-running operations"
 
   - description: "Edit source code in-place, create new migrations, never modify features/ folder, generate SECURITY_CHANGELOG.md"
     preconditions: "Codebase needs security fixes"
-    postconditions: "Direct edits to source files, new migrations created (not modified), features/ untouched, SECURITY_CHANGELOG.md generated"
+    postconditions: "Direct edits to source files, new migrations created (not modified), features/ untouched, SECURITY_CHANGELOG.md generated documenting all fixes with OWASP category, vulnerability description, and fix implementation"
 
 tests:
-  - description: "Run complete OWASP ZAP security scan"
-    preconditions: "None"
-    postconditions: "Zero HIGH/MEDIUM alerts, all tests pass"
+  - description: "Run complete OWASP ZAP security scan and validate zero vulnerabilities"
+    preconditions: "All security fixes implemented according to specs"
+    postconditions: "OWASP ZAP scan reports ZERO HIGH or MEDIUM severity alerts. All behave test scenarios pass. report.html generated showing no critical vulnerabilities. Low, Informational and alerts related to CSP headers or version information are acceptable and ignored"
     function_to_run: !python/file tests/test_full_security_scan.py
 
 references:
