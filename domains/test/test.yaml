@@ -6,4 +6,6 @@ manifests:
 - !include git/git.yaml
 - !include glob/glob.yaml
 - !include python/python.yaml
+- !include javascript/javascript.yaml
+- !include typescript/typescript.yaml
 
