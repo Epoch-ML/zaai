@@ -84,14 +84,6 @@ def test_full_security_scan(zerg_state=None):
         ]
 
     def fail_test(djangogoat_path):
-        report_path = Path(djangogoat_path) / 'report.html'
-
-        if report_path.exists():
-            print(f"Deleting report.html: {report_path}")
-            report_path.unlink()
-        else:
-            print(f"report.html not found: {report_path}")
-    
         return False
     
     def validate_results(output, djangogoat_path):
@@ -222,20 +214,6 @@ def test_full_security_scan(zerg_state=None):
         
         # Parse and validate results (reads from report.html)
         validation_result = validate_results(output, djangogoat_path)
-        
-
-        cleanup_script_path = Path(__file__).parent / 'cleanup_report.sh'
-        cleanup_result = subprocess.run(
-            ['bash', str(cleanup_script_path), str(djangogoat_path)],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-        
-        if cleanup_result.returncode != 0:
-            print(f"⚠ Warning: Cleanup script failed: {cleanup_result.stderr}", file=sys.stderr)
-        elif cleanup_result.stdout:
-            print(cleanup_result.stdout.strip())
         
         return validation_result
         

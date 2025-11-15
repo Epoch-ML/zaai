@@ -218,37 +218,17 @@ references:
     read_only: true
     required: true
 
-  - description: "Start server script"
-    file_path: "tests/start_server.sh"
-    environment_path: "start_server.sh"
-    format: "sh"
+  - description: "Helper scripts for running with tests"
+    file_path: "tests/*.sh"
+    environment_path: "."
+    format: "pattern"
     required: true
     read_only: true
 
-  - description: "Stop server script"
-    file_path: "tests/stop_server.sh"
-    environment_path: "stop_server.sh"
-    format: "sh"
-    required: true
-    read_only: true
+  - description: "Remove scripts from prompt context"
+    environment_path: "**/*.sh"
+    format: "exclude-pattern"
 
-  - description: "Run behave script"
-    file_path: "tests/run_behave.sh"
-    environment_path: "run_behave.sh"
-    format: "sh"
-    required: true
-    read_only: true
-
-  - description: "Test orchestrator script"
-    file_path: "tests/run_full_test.sh"
-    environment_path: "run_full_test.sh"
-    format: "sh"
-    required: true
-    read_only: true
-
-  - description: "Cleanup report script"
-    file_path: "tests/cleanup_report.sh"
-    environment_path: "cleanup_report.sh"
-    format: "sh"
-    required: true
-    read_only: true
+  - description: "Remove report from prompt context"
+    environment_path: "**/report.html"
+    format: "exclude-pattern"
