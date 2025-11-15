@@ -1,0 +1,371 @@
+name: "typescript"
+category: "TypeScript Environment"
+description: |
+  A comprehensive data analytics platform built with TypeScript featuring
+  multiple interconnected modules for data ingestion, processing, analysis,
+  and visualization. Demonstrates advanced TypeScript features including
+  generics, decorators, type guards, and branded types with proper module
+  structure and cross-references.
+
+specs: []
+tests: []
+
+references:
+  # Main entry point
+  - description: "Main application entry point with platform initialization"
+    file_path: "index.ts"
+    environment_path: "src/index.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  # Global types
+  - description: "Global type definitions and branded types"
+    file_path: "types.ts"
+    environment_path: "src/types.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  # Core module files
+  - description: "Core type definitions and interfaces"
+    file_path: "core/types.ts"
+    environment_path: "src/core/types.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Core base classes and abstract components"
+    file_path: "core/base.ts"
+    environment_path: "src/core/base.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Core exception hierarchy with typed errors"
+    file_path: "core/exceptions.ts"
+    environment_path: "src/core/exceptions.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Core validation utilities with type guards"
+    file_path: "core/validators.ts"
+    environment_path: "src/core/validators.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Core configuration management with type safety"
+    file_path: "core/config.ts"
+    environment_path: "src/core/config.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Core component registry with decorators"
+    file_path: "core/registry.ts"
+    environment_path: "src/core/registry.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  # Ingestion module files
+  - description: "Ingestion type definitions and interfaces"
+    file_path: "ingestion/types.ts"
+    environment_path: "src/ingestion/types.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Generic data source implementations"
+    file_path: "ingestion/sources.ts"
+    environment_path: "src/ingestion/sources.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Typed data source connectors with decorators"
+    file_path: "ingestion/connectors.ts"
+    environment_path: "src/ingestion/connectors.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Format-specific parsers with generics"
+    file_path: "ingestion/parsers.ts"
+    environment_path: "src/ingestion/parsers.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Schema detection with type inference"
+    file_path: "ingestion/schema.ts"
+    environment_path: "src/ingestion/schema.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Data loader orchestration with async generators"
+    file_path: "ingestion/loader.ts"
+    environment_path: "src/ingestion/loader.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  # Processing module files
+  - description: "Processing type definitions with generics"
+    file_path: "processing/types.ts"
+    environment_path: "src/processing/types.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Main data processor with worker pools"
+    file_path: "processing/processor.ts"
+    environment_path: "src/processing/processor.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Generic data transformation utilities"
+    file_path: "processing/transformers.ts"
+    environment_path: "src/processing/transformers.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Typed aggregation functions with generics"
+    file_path: "processing/aggregators.ts"
+    environment_path: "src/processing/aggregators.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Type-safe pipeline management"
+    file_path: "processing/pipeline.ts"
+    environment_path: "src/processing/pipeline.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Generic cache implementation with eviction"
+    file_path: "processing/cache.ts"
+    environment_path: "src/processing/cache.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  # Visualization module files
+  - description: "Visualization type definitions and interfaces"
+    file_path: "visualization/types.ts"
+    environment_path: "src/visualization/types.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Chart generation with SVG rendering"
+    file_path: "visualization/charts.ts"
+    environment_path: "src/visualization/charts.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Report building with fluent API"
+    file_path: "visualization/reports.ts"
+    environment_path: "src/visualization/reports.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Multi-format data exporters"
+    file_path: "visualization/exporters.ts"
+    environment_path: "src/visualization/exporters.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  - description: "Template system with type safety"
+    file_path: "visualization/templates.ts"
+    environment_path: "src/visualization/templates.ts"
+    format: "typescript"
+    required: true
+    read_only: true
+
+  # Configuration files
+  - description: "TypeScript compiler configuration"
+    file_path: "tsconfig.json"
+    environment_path: "tsconfig.json"
+    format: "json"
+    required: true
+    read_only: true
+
+  - description: "NPM package configuration"
+    file_path: "package.json"
+    environment_path: "package.json"
+    format: "json"
+    required: true
+    read_only: true
+
+configs:
+  - name: "default_config"
+    description: "Default platform configuration with type safety"
+    value:
+      platform:
+        name: "Analytics Platform TypeScript"
+        version: "1.0.0"
+        strict: true
+      processing:
+        maxWorkers: 4
+        batchSize: 1000
+        cacheEnabled: true
+        memoryLimit: 512
+        timeout: 30000
+      visualization:
+        defaultTheme: "default"
+        exportFormats: ["json", "csv", "html", "pdf", "png", "svg", "markdown"]
+        responsive: true
+      typescript:
+        strictNullChecks: true
+        noImplicitAny: true
+        experimentalDecorators: true
+        emitDecoratorMetadata: true
+        
+  - name: "project_structure"
+    description: "TypeScript project module structure"
+    value: 
+      modules:
+        - name: "core"
+          description: "Core functionality with base types and utilities"
+          files:
+            - "types.ts"
+            - "base.ts"
+            - "exceptions.ts"
+            - "validators.ts"
+            - "config.ts"
+            - "registry.ts"
+        
+        - name: "ingestion"
+          description: "Type-safe data ingestion and source management"
+          files:
+            - "types.ts"
+            - "sources.ts"
+            - "connectors.ts"
+            - "parsers.ts"
+            - "schema.ts"
+            - "loader.ts"
+        
+        - name: "processing"
+          description: "Generic data processing and transformation"
+          files:
+            - "types.ts"
+            - "processor.ts"
+            - "transformers.ts"
+            - "aggregators.ts"
+            - "pipeline.ts"
+            - "cache.ts"
+        
+        - name: "visualization"
+          description: "Type-safe visualization and reporting"
+          files:
+            - "types.ts"
+            - "charts.ts"
+            - "reports.ts"
+            - "exporters.ts"
+            - "templates.ts"
+
+  - name: "typescript_features"
+    description: "Advanced TypeScript features used"
+    value:
+      type_system:
+        - "Branded types for domain modeling"
+        - "Generic interfaces and classes"
+        - "Conditional types"
+        - "Template literal types"
+        - "Mapped types"
+        - "Discriminated unions"
+        - "Type guards and predicates"
+        - "Index signatures with constraints"
+      
+      patterns:
+        - "Decorators for metadata"
+        - "Abstract classes"
+        - "Interface segregation"
+        - "Generic constraints"
+        - "Async generators"
+        - "Method overloading"
+        - "Fluent interfaces"
+        - "Builder patterns with type inference"
+      
+      safety:
+        - "Strict null checking"
+        - "No implicit any"
+        - "No unchecked indexed access"
+        - "Exhaustive switch checks"
+        - "Readonly properties"
+        - "Const assertions"
+        - "Type-only imports"
+
+  - name: "dependencies"
+    description: "TypeScript project dependencies"
+    value:
+      production:
+        - "@types/node"
+        - "winston"
+        - "joi"
+        - "axios"
+        - "lodash"
+        - "@types/lodash"
+      
+      development:
+        - "typescript"
+        - "@types/jest"
+        - "jest"
+        - "ts-jest"
+        - "ts-node"
+        - "@typescript-eslint/parser"
+        - "@typescript-eslint/eslint-plugin"
+        - "eslint"
+        - "prettier"
+        - "nodemon"
+        - "typedoc"
+
+  - name: "compiler_options"
+    description: "TypeScript compiler configuration"
+    value:
+      target: "ES2022"
+      module: "ESNext"
+      moduleResolution: "node"
+      strict: true
+      esModuleInterop: true
+      experimentalDecorators: true
+      emitDecoratorMetadata: true
+      declaration: true
+      sourceMap: true
+      noUnusedLocals: true
+      noUnusedParameters: true
+      noImplicitReturns: true
+      strictNullChecks: true
+      strictFunctionTypes: true
+      strictBindCallApply: true
+      strictPropertyInitialization: true
+      noImplicitThis: true
+      alwaysStrict: true
+      noUncheckedIndexedAccess: true
+
+  - name: "build_scripts"
+    description: "NPM scripts for development"
+    value:
+      build: "tsc"
+      dev: "nodemon --watch src --ext ts --exec ts-node src/index.ts"
+      start: "node dist/index.js"
+      test: "jest"
+      "test:watch": "jest --watch"
+      "test:coverage": "jest --coverage"
+      lint: "eslint src/**/*.ts"
+      "lint:fix": "eslint src/**/*.ts --fix"
+      format: "prettier --write src/**/*.ts"
+      "type-check": "tsc --noEmit"
+      clean: "rm -rf dist"
+      docs: "typedoc --out docs src"
+      "pre-commit": "npm run lint && npm run type-check && npm run test"
