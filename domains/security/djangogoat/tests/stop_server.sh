@@ -1,12 +1,6 @@
 #!/bin/bash
-# Stop Django server (silent mode)
+# Stop Django server
 # Usage: ./stop_server.sh
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOG_FILE="$SCRIPT_DIR/djangogoat_stop_server.log"
-
-: > "$LOG_FILE"
-exec > >(tee -a "$LOG_FILE") 2>&1
 
 if [ -f /tmp/djangogoat_server.pid ]; then
     SERVER_PID=$(cat /tmp/djangogoat_server.pid)
