@@ -11,13 +11,13 @@ description: |
 specs: []
 tests: []
 
-references:
-  - description: "Phase implementations"
-    file_path: "phases/*.py"
-    environment_path: "phases"
-    format: "glob"
-    required: true
-    read_only: true
+# references:
+#   - description: "Phase implementations"
+#     file_path: "phases/*.py"
+#     environment_path: "phases"
+#     format: "glob"
+#     required: true
+#     read_only: true
 
 configs:
   - name: "pipeline_config"
@@ -78,16 +78,10 @@ configs:
         phase: "DataTransform"
         probability: 0.05
 
-# =============================================================================
 # WORKFLOW DEFINITIONS
-# =============================================================================
-
 workflows:
   phases:
-    # -------------------------------------------------------------------------
     # INLINE PHASES - Code defined directly in YAML
-    # -------------------------------------------------------------------------
-    
     - name: "Initialize"
       description: "Initialize pipeline context and configuration"
       max_retries: 1
@@ -178,10 +172,7 @@ workflows:
                 error_message=f"Non-recoverable error: {error}"
             )
 
-    # -------------------------------------------------------------------------
     # EXTERNAL PHASES - Code loaded from files via directive
-    # -------------------------------------------------------------------------
-
     - name: "DataValidation"
       description: "Validate fetched data against schema"
       max_retries: 2
@@ -198,10 +189,7 @@ workflows:
       max_retries: 1
       code: !python/file phases/analysis.py
 
-    # -------------------------------------------------------------------------
     # MORE INLINE PHASES
-    # -------------------------------------------------------------------------
-
     - name: "ReportGeneration"
       description: "Generate final report"
       max_retries: 2
@@ -278,10 +266,7 @@ workflows:
                 status=PhaseStatus.COMPLETED
             )
 
-    # -------------------------------------------------------------------------
     # CONDITIONAL PHASES - For branching logic
-    # -------------------------------------------------------------------------
-    
     - name: "QualityCheck"
       description: "Check data quality and decide next steps"
       max_retries: 1
@@ -378,10 +363,7 @@ workflows:
                 status=PhaseStatus.COMPLETED
             )
 
-  # ---------------------------------------------------------------------------
   # GRAPH DEFINITIONS
-  # ---------------------------------------------------------------------------
-  
   graphs:
     # Simple linear pipeline
     - name: "SimplePipeline"
