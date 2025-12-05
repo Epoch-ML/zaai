@@ -1,0 +1,443 @@
+name: "workflows"
+category: "Workflow System Test"
+description: |
+  A comprehensive test suite for the workflow execution system. Demonstrates
+  inline phases, external phase files, custom error handlers, conditional
+  branching, graph composition, and integration with built-in phases.
+  
+  This project simulates a data processing pipeline with validation,
+  transformation, analysis, and reporting stages.
+
+specs: []
+tests: []
+
+references:
+  - description: "Phase implementations"
+    file_path: "phases/*.py"
+    environment_path: "phases"
+    format: "glob"
+    required: true
+    read_only: true
+
+configs:
+  - name: "pipeline_config"
+    description: "Data pipeline configuration"
+    value:
+      pipeline:
+        name: "Test Data Pipeline"
+        version: "1.0.0"
+        strict_mode: false
+      validation:
+        required_fields: ["id", "timestamp", "value"]
+        max_null_ratio: 0.1
+        type_coercion: true
+      transformation:
+        normalize: true
+        fill_nulls: "mean"
+        outlier_method: "zscore"
+        outlier_threshold: 3.0
+      analysis:
+        aggregations: ["sum", "mean", "std", "min", "max"]
+        group_by: ["category", "region"]
+      reporting:
+        format: "json"
+        include_metadata: true
+        timestamp_format: "iso"
+
+  - name: "test_datasets"
+    description: "Test data configurations"
+    value:
+      small:
+        records: 100
+        error_rate: 0.0
+        null_rate: 0.05
+      medium:
+        records: 1000
+        error_rate: 0.01
+        null_rate: 0.1
+      large:
+        records: 10000
+        error_rate: 0.02
+        null_rate: 0.15
+      stress:
+        records: 100000
+        error_rate: 0.05
+        null_rate: 0.2
+
+  - name: "error_scenarios"
+    description: "Error injection for testing"
+    value:
+      - name: "transient_failure"
+        phase: "DataFetch"
+        probability: 0.3
+        max_failures: 2
+      - name: "validation_error"
+        phase: "DataValidation"
+        probability: 0.1
+      - name: "transform_timeout"
+        phase: "DataTransform"
+        probability: 0.05
+
+# =============================================================================
+# WORKFLOW DEFINITIONS
+# =============================================================================
+
+workflows:
+  phases:
+    # -------------------------------------------------------------------------
+    # INLINE PHASES - Code defined directly in YAML
+    # -------------------------------------------------------------------------
+    
+    - name: "Initialize"
+      description: "Initialize pipeline context and configuration"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Set up initial pipeline state."""
+            input_data = inputs[0].data if inputs else {}
+            
+            # Initialize pipeline context
+            context = {
+                'pipeline_id': input_data.get('pipeline_id', 'test-001'),
+                'started_at': input_data.get('timestamp', '2024-01-01T00:00:00Z'),
+                'config': input_data.get('config', {}),
+                'metrics': {
+                    'phases_completed': 0,
+                    'records_processed': 0,
+                    'errors_encountered': 0,
+                },
+                'stage': 'initialized',
+            }
+            
+            L.info(f"Pipeline {context['pipeline_id']} initialized")
+            
+            return ExecutionTensor(
+                data={'context': context, **input_data},
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "DataFetch"
+      description: "Fetch data from configured source (simulated)"
+      max_retries: 3
+      retry_delay: 1.0
+      default_error_action: "retry"
+      code: |
+        def forward(self, *inputs):
+            """Simulate fetching data from an external source."""
+            import random
+            
+            input_data = inputs[0].data if inputs else {}
+            context = input_data.get('context', {})
+            
+            # Simulate transient failures for testing retry logic
+            if context.get('inject_fetch_error') and random.random() < 0.5:
+                raise ConnectionError("Simulated: Failed to connect to data source")
+            
+            # Generate test data
+            dataset_config = input_data.get('dataset', {'records': 100})
+            num_records = dataset_config.get('records', 100)
+            
+            records = []
+            for i in range(num_records):
+                records.append({
+                    'id': f'record-{i:05d}',
+                    'timestamp': f'2024-01-{(i % 28) + 1:02d}T{i % 24:02d}:00:00Z',
+                    'value': random.uniform(0, 1000),
+                    'category': random.choice(['A', 'B', 'C', 'D']),
+                    'region': random.choice(['north', 'south', 'east', 'west']),
+                    'is_valid': random.random() > dataset_config.get('null_rate', 0.1),
+                })
+            
+            context['stage'] = 'data_fetched'
+            context['metrics']['records_processed'] = len(records)
+            
+            L.info(f"Fetched {len(records)} records")
+            
+            return ExecutionTensor(
+                data={'context': context, 'records': records, **input_data},
+                status=PhaseStatus.COMPLETED
+            )
+      
+      on_error: |
+        def on_error(self, error, input_tensor, attempt):
+            """Retry on connection errors with exponential backoff."""
+            error_str = str(error).lower()
+            
+            if 'connection' in error_str or 'timeout' in error_str:
+                delay = min(2 ** attempt, 30)  # Cap at 30 seconds
+                L.warning(f"DataFetch attempt {attempt} failed, retrying in {delay}s")
+                return ErrorHandlerResult(
+                    action=ErrorAction.RETRY,
+                    retry_delay=delay,
+                    should_log=True,
+                    error_message=f"Transient error, attempt {attempt}"
+                )
+            
+            return ErrorHandlerResult(
+                action=ErrorAction.FAIL,
+                error_message=f"Non-recoverable error: {error}"
+            )
+
+    # -------------------------------------------------------------------------
+    # EXTERNAL PHASES - Code loaded from files via directive
+    # -------------------------------------------------------------------------
+
+    - name: "DataValidation"
+      description: "Validate fetched data against schema"
+      max_retries: 2
+      code: !python/file phases/validation.py
+
+    - name: "DataTransform"
+      description: "Transform and normalize data"
+      max_retries: 2
+      retry_delay: 0.5
+      code: !python/file phases/transform.py
+
+    - name: "DataAnalysis"
+      description: "Perform analysis and aggregations"
+      max_retries: 1
+      code: !python/file phases/analysis.py
+
+    # -------------------------------------------------------------------------
+    # MORE INLINE PHASES
+    # -------------------------------------------------------------------------
+
+    - name: "ReportGeneration"
+      description: "Generate final report"
+      max_retries: 2
+      default_error_action: "continue"
+      code: |
+        def forward(self, *inputs):
+            """Generate a summary report of the pipeline execution."""
+            input_data = inputs[0].data if inputs else {}
+            context = input_data.get('context', {})
+            analysis = input_data.get('analysis', {})
+            
+            report = {
+                'pipeline_id': context.get('pipeline_id'),
+                'status': 'completed',
+                'stages_completed': context.get('stage'),
+                'metrics': context.get('metrics', {}),
+                'summary': {
+                    'total_records': context.get('metrics', {}).get('records_processed', 0),
+                    'valid_records': input_data.get('valid_count', 0),
+                    'invalid_records': input_data.get('invalid_count', 0),
+                    'aggregations': analysis.get('aggregations', {}),
+                },
+                'warnings': input_data.get('warnings', []),
+            }
+            
+            context['stage'] = 'report_generated'
+            
+            L.info(f"Report generated for pipeline {report['pipeline_id']}")
+            
+            return ExecutionTensor(
+                data={'context': context, 'report': report, **input_data},
+                status=PhaseStatus.COMPLETED
+            )
+      
+      on_error: |
+        def on_error(self, error, input_tensor, attempt):
+            """Continue with partial report on failure."""
+            L.error(f"Report generation failed: {error}")
+            return ErrorHandlerResult(
+                action=ErrorAction.CONTINUE,
+                data={
+                    'report': {
+                        'status': 'partial',
+                        'error': str(error),
+                        'metrics': input_tensor.data.get('context', {}).get('metrics', {}),
+                    }
+                },
+                should_log=True
+            )
+
+    - name: "Cleanup"
+      description: "Cleanup temporary resources"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Clean up any temporary resources."""
+            input_data = inputs[0].data if inputs else {}
+            context = input_data.get('context', {})
+            
+            # Simulate cleanup
+            cleaned = {
+                'temp_files_removed': 0,
+                'cache_cleared': True,
+                'connections_closed': True,
+            }
+            
+            context['stage'] = 'completed'
+            context['metrics']['phases_completed'] += 1
+            
+            L.info("Pipeline cleanup completed")
+            
+            return ExecutionTensor(
+                data={'context': context, 'cleanup': cleaned, **input_data},
+                status=PhaseStatus.COMPLETED
+            )
+
+    # -------------------------------------------------------------------------
+    # CONDITIONAL PHASES - For branching logic
+    # -------------------------------------------------------------------------
+    
+    - name: "QualityCheck"
+      description: "Check data quality and decide next steps"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Evaluate data quality and set routing flags."""
+            input_data = inputs[0].data if inputs else {}
+            
+            valid_count = input_data.get('valid_count', 0)
+            total_count = input_data.get('context', {}).get('metrics', {}).get('records_processed', 1)
+            
+            quality_ratio = valid_count / max(total_count, 1)
+            
+            # Set routing flags based on quality
+            routing = {
+                'needs_reprocessing': quality_ratio < 0.8,
+                'can_analyze': quality_ratio >= 0.5,
+                'should_alert': quality_ratio < 0.5,
+                'quality_score': quality_ratio,
+            }
+            
+            status = 'good' if quality_ratio >= 0.8 else ('acceptable' if quality_ratio >= 0.5 else 'poor')
+            L.info(f"Data quality: {status} ({quality_ratio:.1%})")
+            
+            return ExecutionTensor(
+                data={**input_data, 'routing': routing, 'quality_status': status},
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "AlertHandler"
+      description: "Handle quality alerts"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Send alerts for poor quality data."""
+            input_data = inputs[0].data if inputs else {}
+            
+            quality_score = input_data.get('routing', {}).get('quality_score', 1.0)
+            
+            alert = {
+                'type': 'data_quality_warning',
+                'severity': 'high' if quality_score < 0.3 else 'medium',
+                'message': f'Data quality below threshold: {quality_score:.1%}',
+                'pipeline_id': input_data.get('context', {}).get('pipeline_id'),
+            }
+            
+            L.warning(f"Alert: {alert['message']}")
+            
+            # Add to warnings list
+            warnings = input_data.get('warnings', [])
+            warnings.append(alert)
+            
+            return ExecutionTensor(
+                data={**input_data, 'warnings': warnings, 'alert_sent': True},
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "Reprocess"
+      description: "Attempt to recover bad records"
+      max_retries: 2
+      code: |
+        def forward(self, *inputs):
+            """Try to recover or fix invalid records."""
+            input_data = inputs[0].data if inputs else {}
+            
+            invalid_records = input_data.get('invalid_records', [])
+            recovered = []
+            still_invalid = []
+            
+            for record in invalid_records:
+                # Attempt recovery logic
+                if record.get('value') is None:
+                    record['value'] = 0  # Default value
+                    record['recovered'] = True
+                    recovered.append(record)
+                else:
+                    still_invalid.append(record)
+            
+            # Merge recovered back into valid records
+            valid_records = input_data.get('valid_records', [])
+            valid_records.extend(recovered)
+            
+            L.info(f"Recovered {len(recovered)} records, {len(still_invalid)} still invalid")
+            
+            return ExecutionTensor(
+                data={
+                    **input_data,
+                    'valid_records': valid_records,
+                    'invalid_records': still_invalid,
+                    'valid_count': len(valid_records),
+                    'invalid_count': len(still_invalid),
+                    'recovered_count': len(recovered),
+                },
+                status=PhaseStatus.COMPLETED
+            )
+
+  # ---------------------------------------------------------------------------
+  # GRAPH DEFINITIONS
+  # ---------------------------------------------------------------------------
+  
+  graphs:
+    # Simple linear pipeline
+    - name: "SimplePipeline"
+      description: "Basic linear data processing pipeline"
+      entry_phase: "Initialize"
+      handle_errors: true
+      max_attempts: 3
+      flow: "Initialize >> DataFetch >> DataValidation >> DataTransform >> ReportGeneration >> Cleanup"
+
+    # Pipeline with quality checks and conditional branching
+    - name: "QualityAwarePipeline"
+      description: "Pipeline with quality checks and conditional branching"
+      entry_phase: "Initialize"
+      handle_errors: true
+      max_attempts: 3
+      connections:
+        - from: "Initialize"
+          to: "DataFetch"
+        - from: "DataFetch"
+          to: "DataValidation"
+        - from: "DataValidation"
+          to: "QualityCheck"
+        # Branch based on quality
+        - from: "QualityCheck"
+          to: "AlertHandler"
+          condition: "data.get('routing', {}).get('should_alert', False)"
+        - from: "QualityCheck"
+          to: "Reprocess"
+          condition: "data.get('routing', {}).get('needs_reprocessing', False)"
+        - from: "QualityCheck"
+          to: "DataTransform"
+          condition: "data.get('routing', {}).get('can_analyze', True)"
+        # Converge paths
+        - from: "AlertHandler"
+          to: "DataTransform"
+        - from: "Reprocess"
+          to: "DataTransform"
+        - from: "DataTransform"
+          to: "DataAnalysis"
+        - from: "DataAnalysis"
+          to: "ReportGeneration"
+        - from: "ReportGeneration"
+          to: "Cleanup"
+
+    # Analysis-only pipeline (skip ingestion)
+    - name: "AnalysisOnly"
+      description: "Run analysis on pre-loaded data"
+      entry_phase: "DataAnalysis"
+      handle_errors: true
+      max_attempts: 2
+      flow: "DataAnalysis >> ReportGeneration"
+
+    # Validation testing pipeline
+    - name: "ValidationTest"
+      description: "Test validation and error handling"
+      entry_phase: "Initialize"
+      handle_errors: true
+      max_attempts: 5
+      flow: "Initialize >> DataFetch >> DataValidation >> QualityCheck"
