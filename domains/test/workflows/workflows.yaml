@@ -11,14 +11,6 @@ description: |
 specs: []
 tests: []
 
-# references:
-#   - description: "Phase implementations"
-#     file_path: "phases/*.py"
-#     environment_path: "phases"
-#     format: "glob"
-#     required: true
-#     read_only: true
-
 configs:
   - name: "pipeline_config"
     description: "Data pipeline configuration"
@@ -55,14 +47,6 @@ configs:
         records: 1000
         error_rate: 0.01
         null_rate: 0.1
-      large:
-        records: 10000
-        error_rate: 0.02
-        null_rate: 0.15
-      stress:
-        records: 100000
-        error_rate: 0.05
-        null_rate: 0.2
 
   - name: "error_scenarios"
     description: "Error injection for testing"
@@ -71,17 +55,194 @@ configs:
         phase: "DataFetch"
         probability: 0.3
         max_failures: 2
-      - name: "validation_error"
-        phase: "DataValidation"
-        probability: 0.1
-      - name: "transform_timeout"
-        phase: "DataTransform"
-        probability: 0.05
 
 # WORKFLOW DEFINITIONS
 workflows:
   phases:
-    # INLINE PHASES - Code defined directly in YAML
+    # =========================================================================
+    # HELLO WORLD PHASES - Simple phases for testing/benchmarking
+    # =========================================================================
+    
+    - name: "HelloStart"
+      description: "Simple start phase - initializes a counter"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Initialize with a simple greeting and counter."""
+            input_data = inputs[0].data if inputs else {}
+            
+            name = input_data.get('name', 'World')
+            start_value = input_data.get('start_value', 0)
+            
+            L.info(f"Hello, {name}! Starting with value: {start_value}")
+            
+            return ExecutionTensor(
+                data={
+                    'greeting': f'Hello, {name}!',
+                    'counter': start_value,
+                    'history': [f'start: {start_value}'],
+                },
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "AddOne"
+      description: "Add 1 to the counter"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Increment counter by 1."""
+            input_data = inputs[0].data if inputs else {}
+            
+            counter = input_data.get('counter', 0) + 1
+            history = input_data.get('history', [])
+            history.append(f'add_one: {counter}')
+            
+            L.info(f"AddOne: counter is now {counter}")
+            
+            return ExecutionTensor(
+                data={**input_data, 'counter': counter, 'history': history},
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "Double"
+      description: "Double the counter value"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Double the counter value."""
+            input_data = inputs[0].data if inputs else {}
+            
+            counter = input_data.get('counter', 0) * 2
+            history = input_data.get('history', [])
+            history.append(f'double: {counter}')
+            
+            L.info(f"Double: counter is now {counter}")
+            
+            return ExecutionTensor(
+                data={**input_data, 'counter': counter, 'history': history},
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "Square"
+      description: "Square the counter value"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Square the counter value."""
+            input_data = inputs[0].data if inputs else {}
+            
+            counter = input_data.get('counter', 0) ** 2
+            history = input_data.get('history', [])
+            history.append(f'square: {counter}')
+            
+            L.info(f"Square: counter is now {counter}")
+            
+            return ExecutionTensor(
+                data={**input_data, 'counter': counter, 'history': history},
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "PrintResult"
+      description: "Print the final result"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Print final result and summary."""
+            input_data = inputs[0].data if inputs else {}
+            
+            greeting = input_data.get('greeting', 'Hello!')
+            counter = input_data.get('counter', 0)
+            history = input_data.get('history', [])
+            
+            result = {
+                'greeting': greeting,
+                'final_value': counter,
+                'operations': history,
+                'operation_count': len(history),
+            }
+            
+            L.info(f"=== RESULT ===")
+            L.info(f"  {greeting}")
+            L.info(f"  Final value: {counter}")
+            L.info(f"  Operations: {' -> '.join(history)}")
+            
+            return ExecutionTensor(
+                data={**input_data, 'result': result},
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "CheckThreshold"
+      description: "Check if counter exceeds threshold (for conditional testing)"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Check counter against threshold and set routing flags."""
+            input_data = inputs[0].data if inputs else {}
+            
+            counter = input_data.get('counter', 0)
+            threshold = input_data.get('threshold', 10)
+            
+            exceeds = counter > threshold
+            
+            L.info(f"CheckThreshold: {counter} {'>' if exceeds else '<='} {threshold}")
+            
+            return ExecutionTensor(
+                data={
+                    **input_data,
+                    'exceeds_threshold': exceeds,
+                    'threshold_check': {
+                        'value': counter,
+                        'threshold': threshold,
+                        'exceeds': exceeds,
+                    }
+                },
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "LogHigh"
+      description: "Log message for high values"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Log that value is high."""
+            input_data = inputs[0].data if inputs else {}
+            counter = input_data.get('counter', 0)
+            
+            message = f"HIGH VALUE ALERT: {counter}"
+            L.warning(message)
+            
+            history = input_data.get('history', [])
+            history.append(f'high_alert: {counter}')
+            
+            return ExecutionTensor(
+                data={**input_data, 'alert': message, 'history': history},
+                status=PhaseStatus.COMPLETED
+            )
+
+    - name: "LogLow"
+      description: "Log message for low values"
+      max_retries: 1
+      code: |
+        def forward(self, *inputs):
+            """Log that value is low/normal."""
+            input_data = inputs[0].data if inputs else {}
+            counter = input_data.get('counter', 0)
+            
+            message = f"Value is normal: {counter}"
+            L.info(message)
+            
+            history = input_data.get('history', [])
+            history.append(f'normal: {counter}')
+            
+            return ExecutionTensor(
+                data={**input_data, 'status': message, 'history': history},
+                status=PhaseStatus.COMPLETED
+            )
+
+    # =========================================================================
+    # COMPLEX PIPELINE PHASES (existing)
+    # =========================================================================
+    
     - name: "Initialize"
       description: "Initialize pipeline context and configuration"
       max_retries: 1
@@ -90,7 +251,6 @@ workflows:
             """Set up initial pipeline state."""
             input_data = inputs[0].data if inputs else {}
             
-            # Initialize pipeline context
             context = {
                 'pipeline_id': input_data.get('pipeline_id', 'test-001'),
                 'started_at': input_data.get('timestamp', '2024-01-01T00:00:00Z'),
@@ -123,11 +283,9 @@ workflows:
             input_data = inputs[0].data if inputs else {}
             context = input_data.get('context', {})
             
-            # Simulate transient failures for testing retry logic
             if context.get('inject_fetch_error') and random.random() < 0.5:
                 raise ConnectionError("Simulated: Failed to connect to data source")
             
-            # Generate test data
             dataset_config = input_data.get('dataset', {'records': 100})
             num_records = dataset_config.get('records', 100)
             
@@ -158,7 +316,7 @@ workflows:
             error_str = str(error).lower()
             
             if 'connection' in error_str or 'timeout' in error_str:
-                delay = min(2 ** attempt, 30)  # Cap at 30 seconds
+                delay = min(2 ** attempt, 30)
                 L.warning(f"DataFetch attempt {attempt} failed, retrying in {delay}s")
                 return ErrorHandlerResult(
                     action=ErrorAction.RETRY,
@@ -172,31 +330,95 @@ workflows:
                 error_message=f"Non-recoverable error: {error}"
             )
 
-    # EXTERNAL PHASES - Code loaded from files via directive
     - name: "DataValidation"
       description: "Validate fetched data against schema"
       max_retries: 2
-      code: !python/file phases/validation.py
+      code: |
+        def forward(self, *inputs):
+            """Validate records and separate valid/invalid."""
+            input_data = inputs[0].data if inputs else {}
+            records = input_data.get('records', [])
+            
+            valid_records = []
+            invalid_records = []
+            
+            for record in records:
+                if record.get('is_valid', True) and record.get('value') is not None:
+                    valid_records.append(record)
+                else:
+                    invalid_records.append(record)
+            
+            L.info(f"Validation: {len(valid_records)} valid, {len(invalid_records)} invalid")
+            
+            return ExecutionTensor(
+                data={
+                    **input_data,
+                    'valid_records': valid_records,
+                    'invalid_records': invalid_records,
+                    'valid_count': len(valid_records),
+                    'invalid_count': len(invalid_records),
+                },
+                status=PhaseStatus.COMPLETED
+            )
 
     - name: "DataTransform"
       description: "Transform and normalize data"
       max_retries: 2
       retry_delay: 0.5
-      code: !python/file phases/transform.py
+      code: |
+        def forward(self, *inputs):
+            """Transform valid records."""
+            input_data = inputs[0].data if inputs else {}
+            valid_records = input_data.get('valid_records', [])
+            
+            # Simple transformation: normalize values
+            if valid_records:
+                values = [r.get('value', 0) for r in valid_records]
+                max_val = max(values) if values else 1
+                
+                for record in valid_records:
+                    record['normalized_value'] = record.get('value', 0) / max_val
+            
+            L.info(f"Transformed {len(valid_records)} records")
+            
+            return ExecutionTensor(
+                data={**input_data, 'valid_records': valid_records, 'transformed': True},
+                status=PhaseStatus.COMPLETED
+            )
 
     - name: "DataAnalysis"
       description: "Perform analysis and aggregations"
       max_retries: 1
-      code: !python/file phases/analysis.py
+      code: |
+        def forward(self, *inputs):
+            """Compute basic statistics."""
+            input_data = inputs[0].data if inputs else {}
+            valid_records = input_data.get('valid_records', [])
+            
+            values = [r.get('value', 0) for r in valid_records]
+            
+            analysis = {
+                'count': len(values),
+                'sum': sum(values) if values else 0,
+                'mean': sum(values) / len(values) if values else 0,
+                'min': min(values) if values else 0,
+                'max': max(values) if values else 0,
+            }
+            
+            L.info(f"Analysis complete: mean={analysis['mean']:.2f}")
+            
+            return ExecutionTensor(
+                data={**input_data, 'analysis': analysis},
+                status=PhaseStatus.COMPLETED
+            )
 
-    # MORE INLINE PHASES
     - name: "ReportGeneration"
       description: "Generate final report"
       max_retries: 2
       default_error_action: "continue"
       code: |
         def forward(self, *inputs):
-            """Generate a summary report of the pipeline execution."""
+            """Generate a summary report."""
             input_data = inputs[0].data if inputs else {}
             context = input_data.get('context', {})
             analysis = input_data.get('analysis', {})
@@ -204,18 +426,14 @@ workflows:
             report = {
                 'pipeline_id': context.get('pipeline_id'),
                 'status': 'completed',
-                'stages_completed': context.get('stage'),
                 'metrics': context.get('metrics', {}),
                 'summary': {
                     'total_records': context.get('metrics', {}).get('records_processed', 0),
                     'valid_records': input_data.get('valid_count', 0),
                     'invalid_records': input_data.get('invalid_count', 0),
-                    'aggregations': analysis.get('aggregations', {}),
+                    'analysis': analysis,
                 },
-                'warnings': input_data.get('warnings', []),
             }
-            
-            context['stage'] = 'report_generated'
             
             L.info(f"Report generated for pipeline {report['pipeline_id']}")
             
@@ -223,50 +441,24 @@ workflows:
                 data={'context': context, 'report': report, **input_data},
                 status=PhaseStatus.COMPLETED
             )
-      
-      on_error: |
-        def on_error(self, error, input_tensor, attempt):
-            """Continue with partial report on failure."""
-            L.error(f"Report generation failed: {error}")
-            return ErrorHandlerResult(
-                action=ErrorAction.CONTINUE,
-                data={
-                    'report': {
-                        'status': 'partial',
-                        'error': str(error),
-                        'metrics': input_tensor.data.get('context', {}).get('metrics', {}),
-                    }
-                },
-                should_log=True
-            )
 
     - name: "Cleanup"
       description: "Cleanup temporary resources"
       max_retries: 1
       code: |
         def forward(self, *inputs):
-            """Clean up any temporary resources."""
+            """Clean up resources."""
             input_data = inputs[0].data if inputs else {}
             context = input_data.get('context', {})
             
-            # Simulate cleanup
-            cleaned = {
-                'temp_files_removed': 0,
-                'cache_cleared': True,
-                'connections_closed': True,
-            }
-            
             context['stage'] = 'completed'
-            context['metrics']['phases_completed'] += 1
-            
             L.info("Pipeline cleanup completed")
             
             return ExecutionTensor(
-                data={'context': context, 'cleanup': cleaned, **input_data},
+                data={'context': context, 'cleanup': True, **input_data},
                 status=PhaseStatus.COMPLETED
             )
 
-    # CONDITIONAL PHASES - For branching logic
     - name: "QualityCheck"
       description: "Check data quality and decide next steps"
       max_retries: 1
@@ -280,7 +472,6 @@ workflows:
             
             quality_ratio = valid_count / max(total_count, 1)
             
-            # Set routing flags based on quality
             routing = {
                 'needs_reprocessing': quality_ratio < 0.8,
                 'can_analyze': quality_ratio >= 0.5,
@@ -288,11 +479,10 @@ workflows:
                 'quality_score': quality_ratio,
             }
             
-            status = 'good' if quality_ratio >= 0.8 else ('acceptable' if quality_ratio >= 0.5 else 'poor')
-            L.info(f"Data quality: {status} ({quality_ratio:.1%})")
+            L.info(f"Data quality: {quality_ratio:.1%}")
             
             return ExecutionTensor(
-                data={**input_data, 'routing': routing, 'quality_status': status},
+                data={**input_data, 'routing': routing},
                 status=PhaseStatus.COMPLETED
             )
 
@@ -303,19 +493,15 @@ workflows:
         def forward(self, *inputs):
             """Send alerts for poor quality data."""
             input_data = inputs[0].data if inputs else {}
-            
             quality_score = input_data.get('routing', {}).get('quality_score', 1.0)
             
             alert = {
                 'type': 'data_quality_warning',
                 'severity': 'high' if quality_score < 0.3 else 'medium',
                 'message': f'Data quality below threshold: {quality_score:.1%}',
-                'pipeline_id': input_data.get('context', {}).get('pipeline_id'),
             }
             
             L.warning(f"Alert: {alert['message']}")
-            
-            # Add to warnings list
             warnings = input_data.get('warnings', [])
             warnings.append(alert)
             
@@ -329,7 +515,7 @@ workflows:
       max_retries: 2
       code: |
         def forward(self, *inputs):
-            """Try to recover or fix invalid records."""
+            """Try to recover invalid records."""
             input_data = inputs[0].data if inputs else {}
             
             invalid_records = input_data.get('invalid_records', [])
@@ -337,19 +523,17 @@ workflows:
             still_invalid = []
             
             for record in invalid_records:
-                # Attempt recovery logic
                 if record.get('value') is None:
-                    record['value'] = 0  # Default value
+                    record['value'] = 0
                     record['recovered'] = True
                     recovered.append(record)
                 else:
                     still_invalid.append(record)
             
-            # Merge recovered back into valid records
             valid_records = input_data.get('valid_records', [])
             valid_records.extend(recovered)
             
-            L.info(f"Recovered {len(recovered)} records, {len(still_invalid)} still invalid")
+            L.info(f"Recovered {len(recovered)} records")
             
             return ExecutionTensor(
                 data={
@@ -358,13 +542,70 @@ workflows:
                     'invalid_records': still_invalid,
                     'valid_count': len(valid_records),
                     'invalid_count': len(still_invalid),
-                    'recovered_count': len(recovered),
                 },
                 status=PhaseStatus.COMPLETED
             )
 
   # GRAPH DEFINITIONS
   graphs:
+    # =========================================================================
+    # HELLO WORLD GRAPHS - Simple graphs for testing/benchmarking
+    # =========================================================================
+    
+    # Simplest possible graph - just start and print
+    - name: "HelloWorld"
+      description: "Simplest possible workflow - just says hello"
+      entry_phase: "HelloStart"
+      handle_errors: true
+      max_attempts: 1
+      flow: "HelloStart >> PrintResult"
+
+    # Simple linear math: start(5) -> +1 -> *2 -> print = 12
+    - name: "SimpleMath"
+      description: "Simple linear math operations: (start + 1) * 2"
+      entry_phase: "HelloStart"
+      handle_errors: true
+      max_attempts: 1
+      flow: "HelloStart >> AddOne >> Double >> PrintResult"
+
+    # More complex math: start(3) -> +1 -> square -> *2 -> print = 32
+    - name: "MathChain"
+      description: "Chained math: ((start + 1) ^ 2) * 2"
+      entry_phase: "HelloStart"
+      handle_errors: true
+      max_attempts: 1
+      flow: "HelloStart >> AddOne >> Square >> Double >> PrintResult"
+
+    # Conditional branching based on threshold
+    - name: "ConditionalHello"
+      description: "Conditional branching - different paths based on value"
+      entry_phase: "HelloStart"
+      handle_errors: true
+      max_attempts: 1
+      connections:
+        - from: "HelloStart"
+          to: "AddOne"
+        - from: "AddOne"
+          to: "Square"
+        - from: "Square"
+          to: "CheckThreshold"
+        # Branch based on threshold
+        - from: "CheckThreshold"
+          to: "LogHigh"
+          condition: "data.get('exceeds_threshold', False)"
+        - from: "CheckThreshold"
+          to: "LogLow"
+          condition: "not data.get('exceeds_threshold', True)"
+        # Both paths converge to PrintResult
+        - from: "LogHigh"
+          to: "PrintResult"
+        - from: "LogLow"
+          to: "PrintResult"
+
+    # =========================================================================
+    # COMPLEX PIPELINE GRAPHS (existing)
+    # =========================================================================
+    
     # Simple linear pipeline
     - name: "SimplePipeline"
       description: "Basic linear data processing pipeline"
@@ -386,7 +627,6 @@ workflows:
           to: "DataValidation"
         - from: "DataValidation"
           to: "QualityCheck"
-        # Branch based on quality
         - from: "QualityCheck"
           to: "AlertHandler"
           condition: "data.get('routing', {}).get('should_alert', False)"
@@ -396,7 +636,6 @@ workflows:
         - from: "QualityCheck"
           to: "DataTransform"
           condition: "data.get('routing', {}).get('can_analyze', True)"
-        # Converge paths
         - from: "AlertHandler"
           to: "DataTransform"
         - from: "Reprocess"
@@ -408,7 +647,7 @@ workflows:
         - from: "ReportGeneration"
           to: "Cleanup"
 
-    # Analysis-only pipeline (skip ingestion)
+    # Analysis-only pipeline
     - name: "AnalysisOnly"
       description: "Run analysis on pre-loaded data"
       entry_phase: "DataAnalysis"
