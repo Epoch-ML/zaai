@@ -21,6 +21,9 @@ logging.basicConfig(
 )
 L = logging.getLogger(__name__)
 
+# Default port for Strudel REPL
+STRUDEL_PORT = 7777
+
 
 def get_script_dir():
     """Get the directory where this script is located."""
@@ -111,7 +114,7 @@ def install_dependencies(runtime_dir: Path, runtime: str):
         return False
 
 
-def start_repl_server(runtime_dir: Path, runtime: str):
+def start_repl_server(runtime_dir: Path, runtime: str, port: int = STRUDEL_PORT):
     """Start the Strudel REPL server."""
     L.info("Starting Strudel REPL server...")
 
@@ -125,6 +128,7 @@ def start_repl_server(runtime_dir: Path, runtime: str):
 
     env = os.environ.copy()
     env['NODE_ENV'] = 'development'  # Enable livereload
+    env['PORT'] = str(port)
 
     with open(log_file, 'w') as log:
         process = subprocess.Popen(
@@ -177,20 +181,22 @@ def wait_for_server(url: str, timeout: int = 30):
     return False
 
 
-def open_browser():
+def open_browser(port: int = STRUDEL_PORT):
     """Open browser to the REPL UI in a new window."""
     import webbrowser
     L.info("Opening browser to REPL UI...")
     # new=1 opens a new window, new=2 opens a tab
-    webbrowser.open('http://localhost:3333', new=1)
+    webbrowser.open(f'http://localhost:{port}', new=1)
 
 
 def main():
     L.info("=== Strudel REPL Deployment ===")
 
+    port = STRUDEL_PORT
+
     # Check port
-    if not check_port_availability(3333):
-        L.error("Port 3333 is already in use")
+    if not check_port_availability(port):
+        L.error(f"Port {port} is already in use")
         return 1
 
     # Detect runtime
@@ -226,27 +232,28 @@ def main():
         return 1
 
     # Start server
-    process = start_repl_server(runtime_dir, runtime)
+    process = start_repl_server(runtime_dir, runtime, port)
     if not process:
         L.error("Failed to start REPL server")
         return 1
 
     # Wait for server
-    if not wait_for_server("http://localhost:3333"):
+    if not wait_for_server(f"http://localhost:{port}"):
         L.error("REPL server did not become ready")
         return 1
 
     # Open browser to REPL UI
-    open_browser()
+    open_browser(port)
 
     # Create config file
     config = {
-        "repl_url": "http://localhost:3333",
-        "ws_url": "ws://localhost:3333/ws",
+        "repl_url": f"http://localhost:{port}",
+        "ws_url": f"ws://localhost:{port}/ws",
         "runtime": runtime,
         "runtime_version": version,
         "pid": process.pid,
-        "runtime_dir": str(runtime_dir)
+        "runtime_dir": str(runtime_dir),
+        "port": port
     }
 
     config_path = runtime_dir / "config.json"
@@ -261,15 +268,15 @@ def main():
     L.info("\n" + "=" * 50)
     L.info("✅ Strudel REPL Deployment Complete!")
     L.info("=" * 50)
-    L.info(f"REPL URL: http://localhost:3333")
-    L.info(f"WebSocket: ws://localhost:3333/ws")
+    L.info(f"REPL URL: http://localhost:{port}")
+    L.info(f"WebSocket: ws://localhost:{port}/ws")
     L.info(f"Runtime: {runtime} {version}")
     L.info(f"Server PID: {process.pid}")
     L.info(f"Config: {config_path}")
 
     # Set environment variables
-    os.environ['STRUDEL_REPL_URL'] = "http://localhost:3333"
-    os.environ['STRUDEL_WS_URL'] = "ws://localhost:3333/ws"
+    os.environ['STRUDEL_REPL_URL'] = f"http://localhost:{port}"
+    os.environ['STRUDEL_WS_URL'] = f"ws://localhost:{port}/ws"
 
     return 0
 

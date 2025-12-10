@@ -7,13 +7,13 @@ services:
   strudel-repl:
     build: .
     ports:
-      - "3333:3333"
+      - "7777:7777"
     environment:
       - NODE_ENV=production
-      - PORT=3333
+      - PORT=7777
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3333/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:7777/health"]
       interval: 10s
       timeout: 3s
       retries: 3

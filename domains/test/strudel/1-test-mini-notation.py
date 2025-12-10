@@ -18,7 +18,7 @@ async def test_mini_notation(zerg_state=None):
     import json
     import urllib.request
 
-    repl_url = zerg_state.get("strudel_repl_url", {}).get("value", "http://localhost:3333")
+    repl_url = zerg_state.get("strudel_repl_url", {}).get("value", "http://localhost:7777")
 
     class StrudelClient:
         def __init__(self, url):

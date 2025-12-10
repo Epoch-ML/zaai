@@ -282,7 +282,7 @@ wss.on('connection', ws => {
 });
 
 // Start server
-const PORT = process.env.PORT || 3333;
+const PORT = process.env.PORT || 7777;
 server.listen(PORT, () => {
     console.log('');
     console.log('  🎵 Strudel REPL Server');

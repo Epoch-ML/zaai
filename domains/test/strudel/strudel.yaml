@@ -10,7 +10,7 @@ stages:
       Deploys a minimal Strudel REPL web application using Bun/Node.
       Copies server files from stages/strudel-repl/ and starts the server.
     preconditions: Node.js 18+ or Bun installed
-    postconditions: Strudel REPL server is running at http://localhost:3333
+    postconditions: Strudel REPL server is running at http://localhost:7777
     code_to_run: !python/program stages/0-deploy-strudel-repl.py
 
   - name: verify repl connection
@@ -59,7 +59,7 @@ specs:
 
 tests:
   - description: Evaluate basic mini-notation patterns
-    preconditions: REPL server running at localhost:3333
+    preconditions: REPL server running at localhost:7777
     postconditions: |
       Patterns parse without errors;
       Correct number of events generated;
@@ -89,11 +89,11 @@ references:
 configs:
   - name: "repl_port"
     description: "Port for the Strudel REPL server"
-    value: "3333"
+    value: "7777"
 
   - name: "repl_url"
     description: "Full URL for the Strudel REPL server"
-    value: "http://localhost:3333"
+    value: "http://localhost:7777"
 
   - name: "api_endpoints"
     description: "REPL server API endpoints"

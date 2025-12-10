@@ -13,7 +13,7 @@ async def test_error_handling(zerg_state=None):
     import urllib.request
     import urllib.error
 
-    repl_url = zerg_state.get("strudel_repl_url", {}).get("value", "http://localhost:3333")
+    repl_url = zerg_state.get("strudel_repl_url", {}).get("value", "http://localhost:7777")
 
     class StrudelClient:
         def __init__(self, url):

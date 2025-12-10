@@ -15,6 +15,9 @@ logging.basicConfig(
 )
 L = logging.getLogger(__name__)
 
+# Default port for Strudel REPL
+STRUDEL_PORT = 7777
+
 
 def load_config():
     """Load REPL configuration."""
@@ -31,8 +34,8 @@ def load_config():
 
     L.warning("No config file found, using defaults")
     return {
-        "repl_url": os.environ.get("STRUDEL_REPL_URL", "http://localhost:3333"),
-        "ws_url": os.environ.get("STRUDEL_WS_URL", "ws://localhost:3333/ws")
+        "repl_url": os.environ.get("STRUDEL_REPL_URL", f"http://localhost:{STRUDEL_PORT}"),
+        "ws_url": os.environ.get("STRUDEL_WS_URL", f"ws://localhost:{STRUDEL_PORT}/ws")
     }
 
 
@@ -152,7 +155,7 @@ def main():
     L.info("=== Strudel REPL Connection Verification ===")
 
     config = load_config()
-    repl_url = config.get("repl_url", "http://localhost:3333")
+    repl_url = config.get("repl_url", f"http://localhost:{STRUDEL_PORT}")
     L.info(f"REPL URL: {repl_url}")
 
     client = StrudelREPLClient(repl_url)

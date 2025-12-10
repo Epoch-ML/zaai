@@ -7,13 +7,13 @@ Test manifest for the Strudel live coding environment.
 This manifest provides:
 
 ### 1. Full Strudel REPL (Browser UI)
-- **URL**: `http://localhost:3333/`
+- **URL**: `http://localhost:7777/`
 - **Powered by**: `@strudel/repl` web component (loaded from CDN)
 - **Capabilities**: Full Strudel with audio, samples, effects, Csound, visualization
 - **Use case**: Interactive development, debugging, live coding
 
 ### 2. Headless Test API (Backend)
-- **URL**: `http://localhost:3333/evaluate`
+- **URL**: `http://localhost:7777/evaluate`
 - **Powered by**: `@strudel/core` + `@strudel/mini` (Node.js)
 - **Capabilities**: Pattern evaluation, event generation (no audio)
 - **Use case**: CI/CD testing, pattern validation
@@ -45,7 +45,7 @@ strudel/
 # Deploy REPL server
 python stages/0-deploy-strudel-repl.py
 
-# Opens browser to http://localhost:3333 with full Strudel REPL
+# Opens browser to http://localhost:7777 with full Strudel REPL
 # - Press Ctrl+Enter to play patterns
 # - Press Ctrl+. to stop
 
@@ -57,18 +57,18 @@ python stages/3-cleanup-strudel-repl.py
 
 ```bash
 # Health check
-curl http://localhost:3333/health
+curl http://localhost:7777/health
 
 # Test strudel is working
-curl http://localhost:3333/test
+curl http://localhost:7777/test
 
 # Evaluate pattern (headless, no audio)
-curl -X POST http://localhost:3333/evaluate \
+curl -X POST http://localhost:7777/evaluate \
   -H "Content-Type: application/json" \
   -d '{"code": "mini(\"c3 d3 e3 f3\")", "queryStart": 0, "queryEnd": 1}'
 
 # Batch evaluate
-curl -X POST http://localhost:3333/batch-evaluate \
+curl -X POST http://localhost:7777/batch-evaluate \
   -H "Content-Type: application/json" \
   -d '{"patterns": ["mini(\"c3 d3\")", "mini(\"e3 f3\")"]}'
 ```

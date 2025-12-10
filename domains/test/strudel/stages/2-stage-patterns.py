@@ -17,6 +17,9 @@ logging.basicConfig(
 )
 L = logging.getLogger(__name__)
 
+# Default port for Strudel REPL
+STRUDEL_PORT = 7777
+
 
 def load_config():
     possible_paths = [
@@ -27,7 +30,7 @@ def load_config():
         if config_path.exists():
             with open(config_path) as f:
                 return json.load(f)
-    return {"repl_url": "http://localhost:3333"}
+    return {"repl_url": f"http://localhost:{STRUDEL_PORT}"}
 
 
 class StrudelREPLClient:
@@ -152,7 +155,7 @@ def stage_browser_demo(client: StrudelREPLClient) -> bool:
     
     client_count = result.get("clientCount", 0)
     if client_count == 0:
-        L.warning("⚠️  No browser connected - open http://localhost:3333 to see the demo")
+        L.warning(f"⚠️  No browser connected - open http://localhost:{STRUDEL_PORT} to see the demo")
         return True  # Not a failure, just no browser
     
     L.info(f"  → Sent to {client_count} browser(s)")
@@ -174,7 +177,7 @@ def main():
     L.info("=" * 60)
 
     config = load_config()
-    client = StrudelREPLClient(config.get("repl_url", "http://localhost:3333"))
+    client = StrudelREPLClient(config.get("repl_url", f"http://localhost:{STRUDEL_PORT}"))
 
     # Reset state
     client.reset()

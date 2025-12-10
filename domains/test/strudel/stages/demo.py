@@ -12,9 +12,12 @@ import urllib.request
 logging.basicConfig(level=logging.INFO, format='%(message)s')
 L = logging.getLogger(__name__)
 
+# Default port for Strudel REPL
+STRUDEL_PORT = 7777
+
 
 class StrudelClient:
-    def __init__(self, base_url: str = "http://localhost:3333"):
+    def __init__(self, base_url: str = f"http://localhost:{STRUDEL_PORT}"):
         self.base_url = base_url.rstrip('/')
 
     def _post(self, path: str, data: dict = None) -> dict:
@@ -103,13 +106,13 @@ def main():
     
     print("\n🎵 Strudel REPL Demo")
     print("=" * 40)
-    print("Make sure you have the browser open to http://localhost:3333")
+    print(f"Make sure you have the browser open to http://localhost:{STRUDEL_PORT}")
     print("Press Enter to cycle through patterns, 'q' to quit\n")
     
     # Check connection
     result = client.set_code("// Connecting...")
     if result.get("clientCount", 0) == 0:
-        print("⚠️  No browser connected! Open http://localhost:3333 first.")
+        print(f"⚠️  No browser connected! Open http://localhost:{STRUDEL_PORT} first.")
         return
     
     print(f"✅ Connected to {result.get('clientCount')} browser(s)\n")
