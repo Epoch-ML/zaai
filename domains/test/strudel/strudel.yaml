@@ -11,6 +11,7 @@ stages:
       Copies server files from stages/strudel-repl/ and starts the server.
     preconditions: Node.js 18+ or Bun installed
     postconditions: Strudel REPL server is running at http://localhost:7777
+    workspace_path: "strudel/"
     code_to_run: !python/program stages/0-deploy-strudel-repl.py
 
   - name: verify repl connection
@@ -18,13 +19,15 @@ stages:
     description: Verifies the Strudel REPL is responding and can evaluate basic patterns
     preconditions: REPL server is running
     postconditions: REPL responds to health check and basic pattern evaluation
+    workspace_path: "strudel/"
     code_to_run: !python/program stages/1-verify-repl-connection.py
-    
+
   - name: stage patterns
     type: before
     description: Stages test pattern libraries and verifies they work
     preconditions: REPL is running and verified
     postconditions: Test patterns are loaded and validated
+    workspace_path: "strudel/"
     code_to_run: !python/program stages/2-stage-patterns.py
 
   - name: cleanup strudel repl
@@ -32,7 +35,16 @@ stages:
     description: Tears down the Strudel REPL server and cleans up resources
     preconditions: Testing has completed
     postconditions: REPL server stopped, temporary files removed
+    workspace_path: "strudel/"
     code_to_run: !python/program stages/3-cleanup-strudel-repl.py
+
+references: 
+  - description: "strudel repl code"
+    file_path: "stages/strudel-repl/**/*"
+    workspace_path: "strudel/strudel-repl/"
+    format: "glob"
+    required: true
+    read_only: true
 
 specs:
   - description: |
@@ -135,24 +147,6 @@ tests:
       Song plays for the specified duration;
       Playback completes successfully before test ends;
     function_to_run: !python/file 3-test-techno-song.py
-
-references: []
-  # - description: "Strudel documentation"
-  #   url: "https://strudel.cc/learn"
-  # - description: "Strudel GitHub"
-  #   url: "https://github.com/tidalcycles/strudel"
-  # - description: "Strudel mini-notation reference"
-  #   url: "https://strudel.cc/learn/mini-notation"
-  # - description: "Trance song JavaScript file"
-  #   file_path: "strudel/songs/trance.js"
-  #   environment_path: "strudel/songs/trance.js"
-  #   format: "javascript"
-  #   required: true
-  # - description: "Techno song JavaScript file"
-  #   file_path: "strudel/songs/techno.js"
-  #   environment_path: "strudel/songs/techno.js"
-  #   format: "javascript"
-  #   required: true
 
 configs:
   - name: "strudel_repl_url"

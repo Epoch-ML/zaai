@@ -100,7 +100,7 @@
         }
         
         .editor-container {
-            height: calc(100vh - 50px); /* Subtract header height */
+            height: calc(100vh - 50px);
             position: relative;
             overflow: visible;
             z-index: 200;
@@ -117,7 +117,6 @@
             z-index: 200;
         }
         
-        /* Force strudel internals to use full height and be above canvas */
         strudel-editor > div,
         strudel-editor > div > div {
             height: 100% !important;
@@ -146,17 +145,103 @@
             z-index: 201 !important;
         }
         
-        /* Push the visualization canvas behind the editor */
         #test-canvas, canvas[id*="canvas"] {
             z-index: 1 !important;
+        }
+        
+        /* Audio unlock overlay */
+        .audio-unlock-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        
+        .audio-unlock-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .audio-unlock-content {
+            text-align: center;
+            color: white;
+        }
+        
+        .audio-unlock-icon {
+            font-size: 72px;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        .audio-unlock-text {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .audio-unlock-hint {
+            font-size: 14px;
+            color: #888;
+        }
+        
+        /* Audio status indicator */
+        .audio-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            background: #2a2a3a;
+        }
+        
+        .audio-indicator.locked {
+            color: #ef4444;
+        }
+        
+        .audio-indicator.unlocked {
+            color: #4ade80;
+        }
+        
+        .audio-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
         }
     </style>
 </head>
 <body>
+    <!-- Audio unlock overlay -->
+    <div class="audio-unlock-overlay" id="audioUnlockOverlay">
+        <div class="audio-unlock-content">
+            <div class="audio-unlock-icon">🔊</div>
+            <div class="audio-unlock-text">Click anywhere to enable audio</div>
+            <div class="audio-unlock-hint">Browser requires user interaction for sound</div>
+        </div>
+    </div>
+
     <div class="container">
         <header class="header">
             <div class="logo">🎵 Strudel REPL</div>
             <div class="controls">
+                <div class="audio-indicator locked" id="audioIndicator">
+                    <span class="audio-dot"></span>
+                    <span id="audioStatus">Audio Locked</span>
+                </div>
                 <button class="btn btn-play" id="playBtn" onclick="togglePlay()">▶ Play</button>
                 <button class="btn btn-stop" onclick="stopPlay()">⏹ Stop</button>
                 <button class="btn btn-secondary" onclick="shuffleDemo()">🎲 Random</button>
@@ -242,25 +327,30 @@ stack(
                 code: `// Glitch Beats
 samples('github:tidalcycles/dirt-samples')
 
-s("bd sd, hh*8, ~ [cp cp:1]")
-  .bank('RolandTR909')
+s("bd sd cp hh").bank('RolandTR909')
   .sometimes(x => x.speed(2))
   .rarely(x => x.crush(4))
-  .sometimes(x => x.delay(0.5))`
+  .delay(0.25)`
             }
         ];
         
         let currentDemo = 0;
         let isPlaying = false;
+        let audioUnlocked = false;
+        let pendingPlay = null; // Store pending play command
+        
         const playBtn = document.getElementById('playBtn');
         const status = document.getElementById('status');
+        const audioIndicator = document.getElementById('audioIndicator');
+        const audioStatus = document.getElementById('audioStatus');
+        const audioUnlockOverlay = document.getElementById('audioUnlockOverlay');
         
-        // Get the editor element
+        // Get the strudel repl element
         function getRepl() {
             return document.getElementById('repl');
         }
         
-        // Wait for the editor to be ready
+        // Wait for editor to be ready
         function waitForEditor() {
             return new Promise((resolve) => {
                 const check = () => {
@@ -275,32 +365,95 @@ s("bd sd, hh*8, ~ [cp cp:1]")
             });
         }
         
+        // Audio unlock function
+        async function unlockAudio() {
+            if (audioUnlocked) return true;
+            
+            console.log('Attempting to unlock audio...');
+            
+            try {
+                const editor = await waitForEditor();
+                
+                // Try to get AudioContext from various places
+                let audioContext = null;
+                
+                // Method 1: Check if Strudel exposes getAudioContext
+                if (typeof getAudioContext === 'function') {
+                    audioContext = getAudioContext();
+                }
+                
+                // Method 2: Try global AudioContext
+                if (!audioContext && window.AudioContext) {
+                    // Create a temporary context to trigger unlock
+                    const tempCtx = new AudioContext();
+                    if (tempCtx.state === 'suspended') {
+                        await tempCtx.resume();
+                    }
+                    // Create a silent oscillator to fully unlock
+                    const oscillator = tempCtx.createOscillator();
+                    const gain = tempCtx.createGain();
+                    gain.gain.value = 0;
+                    oscillator.connect(gain);
+                    gain.connect(tempCtx.destination);
+                    oscillator.start();
+                    oscillator.stop(tempCtx.currentTime + 0.001);
+                }
+                
+                // Method 3: Try to play and immediately stop to unlock Strudel's context
+                try {
+                    await editor.evaluate();
+                    await new Promise(r => setTimeout(r, 50));
+                    editor.stop();
+                } catch (e) {
+                    console.log('Pre-evaluate for unlock:', e.message);
+                }
+                
+                audioUnlocked = true;
+                console.log('Audio unlocked successfully!');
+                
+                // Update UI
+                audioIndicator.classList.remove('locked');
+                audioIndicator.classList.add('unlocked');
+                audioStatus.textContent = 'Audio Ready';
+                audioUnlockOverlay.classList.add('hidden');
+                
+                // If there was a pending play command, execute it now
+                if (pendingPlay) {
+                    console.log('Executing pending play command...');
+                    const playFn = pendingPlay;
+                    pendingPlay = null;
+                    await playFn();
+                }
+                
+                return true;
+            } catch (e) {
+                console.error('Audio unlock failed:', e);
+                return false;
+            }
+        }
+        
+        // Click handler to unlock audio
+        document.addEventListener('click', async (e) => {
+            if (!audioUnlocked) {
+                await unlockAudio();
+            }
+        }, { once: false });
+        
+        // Also unlock on keypress
+        document.addEventListener('keydown', async (e) => {
+            if (!audioUnlocked && (e.key === 'Enter' || e.key === ' ')) {
+                await unlockAudio();
+            }
+        }, { once: false });
+        
         // Initialize
         async function init() {
             const editor = await waitForEditor();
             
             console.log('Strudel REPL ready!');
-            console.log('Editor object:', editor);
-            
-            // Log all available methods
-            const methods = [];
-            for (let key in editor) {
-                if (typeof editor[key] === 'function') {
-                    methods.push(key);
-                }
-            }
-            console.log('Available methods:', methods);
-            
-            // Also check prototype
-            const proto = Object.getPrototypeOf(editor);
-            const protoMethods = Object.getOwnPropertyNames(proto).filter(
-                k => typeof proto[k] === 'function' && k !== 'constructor'
-            );
-            console.log('Prototype methods:', protoMethods);
             
             // Set initial code
             editor.setCode(demos[0].code);
-            
             status.textContent = demos[0].name;
             
             // Fix editor height after a short delay
@@ -314,9 +467,6 @@ s("bd sd, hh*8, ~ [cp cp:1]")
             const repl = document.getElementById('repl');
             const height = container.offsetHeight;
             
-            console.log('Fixing editor height to:', height);
-            
-            // Force height on all internal elements
             const innerDiv = repl.querySelector('div');
             if (innerDiv) {
                 innerDiv.style.height = height + 'px';
@@ -336,7 +486,6 @@ s("bd sd, hh*8, ~ [cp cp:1]")
             }
         }
         
-        // Also fix on window resize
         window.addEventListener('resize', fixEditorHeight);
         
         function updatePlayButton() {
@@ -349,22 +498,25 @@ s("bd sd, hh*8, ~ [cp cp:1]")
                 playBtn.textContent = '▶ Play';
                 playBtn.classList.remove('playing');
                 status.classList.remove('playing');
-                status.textContent = demos[currentDemo].name;
+                status.textContent = demos[currentDemo]?.name || 'Ready';
             }
         }
         
         async function togglePlay() {
+            // Ensure audio is unlocked first
+            if (!audioUnlocked) {
+                await unlockAudio();
+            }
+            
             const editor = await waitForEditor();
             console.log('togglePlay called, isPlaying:', isPlaying);
             
             try {
-                // Use toggle() which handles play/stop
                 editor.toggle();
                 isPlaying = !isPlaying;
                 updatePlayButton();
             } catch(e) { 
                 console.error('Toggle error:', e);
-                // Fallback: try evaluate for play
                 if (!isPlaying) {
                     try {
                         await editor.evaluate();
@@ -389,7 +541,6 @@ s("bd sd, hh*8, ~ [cp cp:1]")
         async function shuffleDemo() {
             await stopPlay();
             
-            // Pick random demo
             let next;
             do {
                 next = Math.floor(Math.random() * demos.length);
@@ -406,6 +557,8 @@ s("bd sd, hh*8, ~ [cp cp:1]")
         // Expose for debugging
         window.getRepl = getRepl;
         window.demos = demos;
+        window.unlockAudio = unlockAudio;
+        window.isAudioUnlocked = () => audioUnlocked;
         
         // WebSocket connection for receiving commands from server
         function connectWebSocket() {
@@ -415,9 +568,13 @@ s("bd sd, hh*8, ~ [cp cp:1]")
                 console.log('WebSocket connected');
                 const dot = document.createElement('span');
                 dot.style.cssText = 'display:inline-block;width:8px;height:8px;background:#4ade80;border-radius:50%;margin-right:6px;';
-                status.innerHTML = '';
-                status.appendChild(dot);
-                status.appendChild(document.createTextNode('Connected'));
+                
+                // Only update if audio is already unlocked, otherwise keep the unlock prompt
+                if (audioUnlocked) {
+                    status.innerHTML = '';
+                    status.appendChild(dot);
+                    status.appendChild(document.createTextNode('Connected'));
+                }
             };
             
             ws.onmessage = async (event) => {
@@ -439,15 +596,34 @@ s("bd sd, hh*8, ~ [cp cp:1]")
                         break;
                         
                     case 'play':
-                        console.log('Received play command');
-                        try {
-                            await editor.evaluate();
-                            isPlaying = true;
-                            updatePlayButton();
-                            status.textContent = '▶ Playing';
-                            status.style.color = '#4ade80';
-                        } catch(e) {
-                            console.error('Play error:', e);
+                        console.log('Received play command, audioUnlocked:', audioUnlocked);
+                        
+                        const doPlay = async () => {
+                            try {
+                                await editor.evaluate();
+                                isPlaying = true;
+                                updatePlayButton();
+                                status.textContent = '▶ Playing';
+                                status.style.color = '#4ade80';
+                            } catch(e) {
+                                console.error('Play error:', e);
+                                status.textContent = '❌ Play failed';
+                                status.style.color = '#ef4444';
+                            }
+                        };
+                        
+                        if (!audioUnlocked) {
+                            console.log('Audio not unlocked, queuing play command...');
+                            pendingPlay = doPlay;
+                            status.textContent = '🔇 Click to enable audio & play';
+                            status.style.color = '#facc15';
+                            // Flash the overlay to draw attention
+                            audioUnlockOverlay.style.background = 'rgba(250, 204, 21, 0.9)';
+                            setTimeout(() => {
+                                audioUnlockOverlay.style.background = 'rgba(0, 0, 0, 0.85)';
+                            }, 200);
+                        } else {
+                            await doPlay();
                         }
                         break;
                         
@@ -466,19 +642,29 @@ s("bd sd, hh*8, ~ [cp cp:1]")
                         
                     case 'replay':
                         console.log('Received replay command');
-                        try {
-                            // Stop first, then re-evaluate
-                            editor.stop();
-                            status.textContent = '🔄 Restarting...';
+                        
+                        const doReplay = async () => {
+                            try {
+                                editor.stop();
+                                status.textContent = '🔄 Restarting...';
+                                status.style.color = '#facc15';
+                                await new Promise(r => setTimeout(r, 100));
+                                await editor.evaluate();
+                                isPlaying = true;
+                                updatePlayButton();
+                                status.textContent = '▶ Playing';
+                                status.style.color = '#4ade80';
+                            } catch(e) {
+                                console.error('Replay error:', e);
+                            }
+                        };
+                        
+                        if (!audioUnlocked) {
+                            pendingPlay = doReplay;
+                            status.textContent = '🔇 Click to enable audio & play';
                             status.style.color = '#facc15';
-                            await new Promise(r => setTimeout(r, 100));
-                            await editor.evaluate();
-                            isPlaying = true;
-                            updatePlayButton();
-                            status.textContent = '▶ Playing';
-                            status.style.color = '#4ade80';
-                        } catch(e) {
-                            console.error('Replay error:', e);
+                        } else {
+                            await doReplay();
                         }
                         break;
                         
