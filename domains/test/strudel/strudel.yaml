@@ -1,0 +1,109 @@
+# Strudel Live Coding REPL Test Manifest
+name: "strudel"
+category: "Live Coding / Music Programming"
+description: "Test manifest for Strudel live coding patterns - spins up a minimal Strudel REPL web app, then executes JS/TS pattern code via HTTP communication"
+
+stages:
+  - name: deploy strudel repl
+    type: before
+    description: |
+      Deploys a minimal Strudel REPL web application using Bun/Node.
+      Copies server files from stages/strudel-repl/ and starts the server.
+    preconditions: Node.js 18+ or Bun installed
+    postconditions: Strudel REPL server is running at http://localhost:3333
+    code_to_run: !python/program stages/0-deploy-strudel-repl.py
+
+  - name: verify repl connection
+    type: before
+    description: Verifies the Strudel REPL is responding and can evaluate basic patterns
+    preconditions: REPL server is running
+    postconditions: REPL responds to health check and basic pattern evaluation
+    code_to_run: !python/program stages/1-verify-repl-connection.py
+
+  - name: stage patterns
+    type: before
+    description: Stages test pattern libraries and verifies they work
+    preconditions: REPL is running and verified
+    postconditions: Test patterns are loaded and validated
+    code_to_run: !python/program stages/2-stage-patterns.py
+
+  - name: cleanup strudel repl
+    type: after
+    description: Tears down the Strudel REPL server and cleans up resources
+    preconditions: Testing has completed
+    postconditions: REPL server stopped, temporary files removed
+    code_to_run: !python/program stages/3-cleanup-strudel-repl.py
+
+specs:
+  - description: |
+      The Strudel REPL can evaluate mini-notation patterns
+    preconditions: REPL is running and initialized
+    postconditions: |
+      Mini-notation strings are parsed correctly;
+      Pattern sequences are generated from mini-notation;
+      Supports standard operators: [], <>, *, /, @, !;
+
+  - description: |
+      The Strudel REPL can chain pattern transformations
+    preconditions: REPL is running with base patterns loaded
+    postconditions: |
+      Pattern methods chain correctly (note, sound, gain, etc.);
+      Transformations apply in correct order;
+
+  - description: |
+      The Strudel REPL supports pattern composition
+    preconditions: REPL is running
+    postconditions: |
+      stack() combines patterns vertically;
+      cat()/fastcat()/slowcat() sequence patterns;
+
+tests:
+  - description: Evaluate basic mini-notation patterns
+    preconditions: REPL server running at localhost:3333
+    postconditions: |
+      Patterns parse without errors;
+      Correct number of events generated;
+      Event timing is accurate;
+    function_to_run: !python/file 1-test-mini-notation.py
+
+  - description: Test pattern transformation chains
+    preconditions: REPL server running with patterns loaded
+    postconditions: |
+      Method chaining works correctly;
+      Transformations compose;
+    function_to_run: !python/file 2-test-transformations.py
+
+  - description: Test error handling and edge cases
+    preconditions: REPL server running
+    postconditions: |
+      Invalid patterns return errors;
+      Edge cases handled gracefully;
+    function_to_run: !python/file 3-test-error-handling.py
+
+references:
+  - description: "Strudel documentation"
+    url: "https://strudel.cc/learn"
+  - description: "Strudel GitHub"
+    url: "https://github.com/tidalcycles/strudel"
+
+configs:
+  - name: "repl_port"
+    description: "Port for the Strudel REPL server"
+    value: "3333"
+
+  - name: "repl_url"
+    description: "Full URL for the Strudel REPL server"
+    value: "http://localhost:3333"
+
+  - name: "api_endpoints"
+    description: "REPL server API endpoints"
+    value: |
+      POST /evaluate - Evaluate pattern code, returns events
+      GET /health - Server health check
+      POST /reset - Reset server state
+      GET /state - Get current pattern state
+
+  - name: "zerg_state_keys"
+    description: "Keys populated in zerg_state by stages"
+    value: |
+      strudel_repl_url, strudel_ws_url, strudel_repl_pid, strudel_runtime_dir

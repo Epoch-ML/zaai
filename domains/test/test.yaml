@@ -3,10 +3,12 @@
 manifests:
 #- !include env/env.yaml
 #- !include templates/j2_template.yaml
+- !include strudel/strudel.yaml
 - !include git/git.yaml
 - !include glob/glob.yaml
 - !include python/python.yaml
 - !include workflows/workflows.yaml
 - !include javascript/javascript.yaml
 - !include typescript/typescript.yaml
+- !include instruments_and_processes/instruments_and_processes.yaml
 
