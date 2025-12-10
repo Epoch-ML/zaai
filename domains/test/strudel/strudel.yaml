@@ -1,7 +1,7 @@
-# Strudel Live Coding REPL Test Manifest
+# Strudel Live Coding REPL Client
 name: "strudel"
 category: "Live Coding / Music Programming"
-description: "Test manifest for Strudel live coding patterns - spins up a minimal Strudel REPL web app, then executes JS/TS pattern code via HTTP communication"
+description: "Create a client integration with Strudel REPL for programmatic music generation and playback, including genre-specific song implementations"
 
 stages:
   - name: deploy strudel repl
@@ -19,7 +19,7 @@ stages:
     preconditions: REPL server is running
     postconditions: REPL responds to health check and basic pattern evaluation
     code_to_run: !python/program stages/1-verify-repl-connection.py
-
+    
   - name: stage patterns
     type: before
     description: Stages test pattern libraries and verifies they work
@@ -36,74 +36,197 @@ stages:
 
 specs:
   - description: |
-      The Strudel REPL can evaluate mini-notation patterns
-    preconditions: REPL is running and initialized
+      The Strudel Client is able to connect to and communicate with a Strudel REPL server
+    preconditions: |
+      This spec has no strict preconditions
     postconditions: |
-      Mini-notation strings are parsed correctly;
-      Pattern sequences are generated from mini-notation;
-      Supports standard operators: [], <>, *, /, @, !;
+      The Strudel client is able to establish connection with the REPL server;
+      The StrudelClientConfig contains the repl_url field for the server endpoint;
+      The client can perform health checks to verify server availability;
 
   - description: |
-      The Strudel REPL can chain pattern transformations
-    preconditions: REPL is running with base patterns loaded
+      The Strudel Client is able to evaluate JavaScript/Strudel pattern code headlessly
+    preconditions: |
+      A valid connection to the Strudel REPL server
     postconditions: |
-      Pattern methods chain correctly (note, sound, gain, etc.);
-      Transformations apply in correct order;
+      Client successfully sends pattern code to the /evaluate endpoint;
+      Client receives and parses the evaluation response including events array;
+      Client can specify query time range (queryStart, queryEnd) for pattern evaluation;
+      Evaluation errors are properly captured and returned with error details;
 
   - description: |
-      The Strudel REPL supports pattern composition
-    preconditions: REPL is running
+      The Strudel Client is able to control playback in connected browser instances
+    preconditions: |
+      A valid connection to the Strudel REPL server;
+      At least one browser connected to the REPL WebSocket;
     postconditions: |
-      stack() combines patterns vertically;
-      cat()/fastcat()/slowcat() sequence patterns;
+      Client can send code to browser via set_code method;
+      Client can trigger playback via play method;
+      Client can stop playback via stop method;
+      Client can restart playback via replay method;
+      Client reports the number of connected browser clients;
+
+  - description: |
+      The Strudel Client is able to load and play songs from JavaScript files with proper lifecycle management
+    preconditions: |
+      A valid connection to the Strudel REPL server;
+      Browser connected for audio playback;
+    postconditions: |
+      Client can load song code from a file path via load_song method;
+      Client can play a song for a specified duration in seconds;
+      Client properly waits for the song duration before returning;
+      Client can stop playback and verify it has stopped;
+      The play_song method accepts JavaScript/Strudel code and duration parameters;
+
+  - description: |
+      A trance song is implemented as a JavaScript file with appropriate musical characteristics
+    preconditions: |
+      Understanding of Strudel/TidalCycles pattern syntax
+    postconditions: |
+      The file strudel/songs/trance.js exists and contains valid Strudel code;
+      The song features trance characteristics: arpeggiated melodies, filter sweeps, atmospheric pads;
+      The song uses delay and reverb effects typical of trance;
+      The code can be evaluated without errors by the Strudel REPL;
+
+  - description: |
+      A techno song is implemented as a JavaScript file with appropriate musical characteristics
+    preconditions: |
+      Understanding of Strudel/TidalCycles pattern syntax
+    postconditions: |
+      The file strudel/songs/techno.js exists and contains valid Strudel code;
+      The song features techno characteristics: four-on-the-floor kick, driving hi-hats, percussive elements;
+      The song uses drum machine sounds (909/808 style);
+      The code can be evaluated without errors by the Strudel REPL;
 
 tests:
-  - description: Evaluate basic mini-notation patterns
-    preconditions: REPL server running at localhost:7777
+  - description: |
+      Verify Strudel client can connect and evaluate patterns
+    preconditions: |
+      Strudel REPL server running at configured URL
     postconditions: |
-      Patterns parse without errors;
-      Correct number of events generated;
-      Event timing is accurate;
-    function_to_run: !python/file 1-test-mini-notation.py
+      Client successfully connects to REPL server;
+      Client can evaluate mini-notation patterns;
+      Client receives correct event counts from evaluation;
+      Client properly handles evaluation errors;
+    function_to_run: !python/file 1-test-client-connection.py
 
-  - description: Test pattern transformation chains
-    preconditions: REPL server running with patterns loaded
+  - description: |
+      Load and play the trance song through the Strudel client
+    preconditions: |
+      Strudel REPL server running;
+      Browser connected for audio playback;
+      strudel/songs/trance.js exists with valid Strudel code;
     postconditions: |
-      Method chaining works correctly;
-      Transformations compose;
-    function_to_run: !python/file 2-test-transformations.py
+      Client loads trance.js successfully;
+      Song code validates without evaluation errors;
+      Song plays for the specified duration;
+      Playback completes successfully before test ends;
+    function_to_run: !python/file 2-test-trance-song.py
 
-  - description: Test error handling and edge cases
-    preconditions: REPL server running
+  - description: |
+      Load and play the techno song through the Strudel client
+    preconditions: |
+      Strudel REPL server running;
+      Browser connected for audio playback;
+      strudel/songs/techno.js exists with valid Strudel code;
     postconditions: |
-      Invalid patterns return errors;
-      Edge cases handled gracefully;
-    function_to_run: !python/file 3-test-error-handling.py
+      Client loads techno.js successfully;
+      Song code validates without evaluation errors;
+      Song plays for the specified duration;
+      Playback completes successfully before test ends;
+    function_to_run: !python/file 3-test-techno-song.py
 
-references:
-  - description: "Strudel documentation"
-    url: "https://strudel.cc/learn"
-  - description: "Strudel GitHub"
-    url: "https://github.com/tidalcycles/strudel"
+references: []
+  # - description: "Strudel documentation"
+  #   url: "https://strudel.cc/learn"
+  # - description: "Strudel GitHub"
+  #   url: "https://github.com/tidalcycles/strudel"
+  # - description: "Strudel mini-notation reference"
+  #   url: "https://strudel.cc/learn/mini-notation"
+  # - description: "Trance song JavaScript file"
+  #   file_path: "strudel/songs/trance.js"
+  #   environment_path: "strudel/songs/trance.js"
+  #   format: "javascript"
+  #   required: true
+  # - description: "Techno song JavaScript file"
+  #   file_path: "strudel/songs/techno.js"
+  #   environment_path: "strudel/songs/techno.js"
+  #   format: "javascript"
+  #   required: true
 
 configs:
-  - name: "repl_port"
-    description: "Port for the Strudel REPL server"
-    value: "7777"
-
-  - name: "repl_url"
-    description: "Full URL for the Strudel REPL server"
+  - name: "strudel_repl_url"
+    description: "The base URL of the Strudel REPL server, included as repl_url in StrudelClientConfig"
     value: "http://localhost:7777"
+    is_field: true
+    is_secret: false
+    config_key: repl_url
+
+  - name: "strudel_ws_url"
+    description: "WebSocket URL for real-time communication with REPL"
+    value: "ws://localhost:7777/ws"
+    is_field: true
+    is_secret: false
+    config_key: ws_url
+
+  - name: "strudel_request_timeout"
+    description: "Request timeout in seconds for API calls"
+    value: 30
+    is_field: true
+    config_key: timeout
+
+  - name: "strudel_default_song_duration"
+    description: "Default duration in seconds for song playback"
+    value: 10
+
+  - name: "client_module"
+    description: "Name of client module"
+    value: "strudel"
+
+  - name: "client_name"
+    description: "Name of client"
+    value: "Strudel"
+
+  - name: "song_files"
+    description: "Song files that should be generated"
+    value:
+      trance: "strudel/songs/trance.js"
+      techno: "strudel/songs/techno.js"
+
+  - name: "expected_client_methods"
+    description: "Expected methods on the StrudelClient class"
+    value: [
+      health_check,
+      evaluate,
+      set_code,
+      play,
+      stop,
+      replay,
+      play_song,
+      load_song
+    ]
 
   - name: "api_endpoints"
-    description: "REPL server API endpoints"
-    value: |
-      POST /evaluate - Evaluate pattern code, returns events
-      GET /health - Server health check
-      POST /reset - Reset server state
-      GET /state - Get current pattern state
+    description: "REPL server API endpoints used by the client"
+    value:
+      health: "GET /health"
+      evaluate: "POST /evaluate"
+      set_code: "POST /set-code"
+      play: "POST /play"
+      stop: "POST /stop"
+      replay: "POST /replay"
 
-  - name: "zerg_state_keys"
-    description: "Keys populated in zerg_state by stages"
-    value: |
-      strudel_repl_url, strudel_ws_url, strudel_repl_pid, strudel_runtime_dir
+  - name: "additional_considerations"
+    description: |
+      Additional considerations for the generation of the Strudel client and songs
+    value: [
+      "StrudelClientConfig should be a simple config class with repl_url, ws_url, and timeout fields",
+      "The client should handle both headless evaluation (no audio) and browser playback (with audio)",
+      "The load_song method should read a JavaScript file and return its contents as a string",
+      "The play_song method should use asyncio.sleep or time.sleep to wait for the duration",
+      "All API calls should include proper error handling and timeout management",
+      "The client should work without requiring browser connection for headless evaluation",
+      "Song JS files should be self-contained valid Strudel code that can be evaluated directly",
+      "Trance song should feature: arpeggios, pads, filter sweeps, delay/reverb, ~130-140 BPM feel",
+      "Techno song should feature: 4/4 kick, hi-hats, percussion, 909/808 sounds, ~130-140 BPM feel"
+    ]
