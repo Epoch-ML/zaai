@@ -72,15 +72,11 @@ def copy_repl_files(runtime_dir: Path):
         L.error("Expected strudel-repl/ folder with server.js and package.json")
         return False
 
-    runtime_dir.mkdir(parents=True, exist_ok=True)
-
-    # Copy all files from source
-    for item in source_dir.iterdir():
-        if item.is_file():
-            dest = runtime_dir / item.name
-            shutil.copy2(item, dest)
-            L.debug(f"Copied {item.name}")
-
+    # Use copytree to copy everything including subdirectories
+    if runtime_dir.exists():
+        shutil.rmtree(runtime_dir)
+    
+    shutil.copytree(source_dir, runtime_dir)
     L.info(f"✅ Copied REPL files to {runtime_dir}")
     return True
 
@@ -119,9 +115,16 @@ def start_repl_server(runtime_dir: Path, runtime: str):
     """Start the Strudel REPL server."""
     L.info("Starting Strudel REPL server...")
 
-    cmd = ['bun', 'run', 'server.js'] if runtime == 'bun' else ['node', 'server.js']
+    # Use dev mode for hot reloading
+    if runtime == 'bun':
+        cmd = ['bun', '--watch', 'server.js']
+    else:
+        cmd = ['node', '--watch', 'server.js']
 
     log_file = runtime_dir / "server.log"
+
+    env = os.environ.copy()
+    env['NODE_ENV'] = 'development'  # Enable livereload
 
     with open(log_file, 'w') as log:
         process = subprocess.Popen(
@@ -129,6 +132,7 @@ def start_repl_server(runtime_dir: Path, runtime: str):
             cwd=runtime_dir,
             stdout=log,
             stderr=subprocess.STDOUT,
+            env=env,
             preexec_fn=os.setsid if sys.platform != 'win32' else None
         )
 
@@ -173,12 +177,12 @@ def wait_for_server(url: str, timeout: int = 30):
     return False
 
 
-def open_browser_if_visual():
-    """Open browser if visual mode is enabled."""
-    if os.environ.get('STRUDEL_VISUAL', '0') == '1':
-        import webbrowser
-        L.info("Opening browser (visual mode enabled)...")
-        webbrowser.open('http://localhost:3333')
+def open_browser():
+    """Open browser to the REPL UI in a new window."""
+    import webbrowser
+    L.info("Opening browser to REPL UI...")
+    # new=1 opens a new window, new=2 opens a tab
+    webbrowser.open('http://localhost:3333', new=1)
 
 
 def main():
@@ -199,7 +203,7 @@ def main():
     script_dir = get_script_dir()
     runtime_dir = script_dir / "strudel-repl-runtime"
 
-    # Clean up existing
+    # Stop any existing server
     if runtime_dir.exists():
         pid_file = runtime_dir / "server.pid"
         if pid_file.exists():
@@ -210,7 +214,6 @@ def main():
                 L.info(f"Stopped old server (PID: {old_pid})")
             except:
                 pass
-        shutil.rmtree(runtime_dir)
 
     # Copy server files from strudel-repl/
     if not copy_repl_files(runtime_dir):
@@ -233,8 +236,8 @@ def main():
         L.error("REPL server did not become ready")
         return 1
 
-    # Open browser if visual mode
-    open_browser_if_visual()
+    # Open browser to REPL UI
+    open_browser()
 
     # Create config file
     config = {

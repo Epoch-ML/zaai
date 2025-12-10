@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Strudel REPL</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+    <script src="https://unpkg.com/@strudel/repl@latest"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { 
+            height: 100%; 
+            background: #1a1a2e; 
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 16px;
+            background: #16161e;
+            border-bottom: 1px solid #333;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 10;
+        }
+        
+        .logo {
+            color: #7aa2f7;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        
+        .btn {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+        
+        .btn-play {
+            background: #4ade80;
+            color: #000;
+        }
+        .btn-play:hover { background: #22c55e; }
+        .btn-play.playing {
+            background: #f472b6;
+        }
+        
+        .btn-stop {
+            background: #ef4444;
+            color: #fff;
+        }
+        .btn-stop:hover { background: #dc2626; }
+        
+        .btn-secondary {
+            background: #333;
+            color: #ccc;
+        }
+        .btn-secondary:hover { background: #444; }
+        
+        .status {
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .status.playing {
+            color: #4ade80;
+        }
+        
+        .hints {
+            color: #555;
+            font-size: 11px;
+        }
+        
+        kbd {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            margin-left: 4px;
+        }
+        
+        .editor-container {
+            height: calc(100vh - 50px); /* Subtract header height */
+            position: relative;
+            overflow: visible;
+            z-index: 200;
+        }
+        
+        strudel-editor {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 100%;
+            width: 100%;
+            z-index: 200;
+        }
+        
+        /* Force strudel internals to use full height and be above canvas */
+        strudel-editor > div,
+        strudel-editor > div > div {
+            height: 100% !important;
+            position: relative !important;
+            z-index: 200 !important;
+        }
+        
+        .cm-editor {
+            height: 100% !important;
+            position: relative !important;
+            z-index: 200 !important;
+            background: #1e1e2e !important;
+        }
+        
+        .cm-scroller {
+            height: 100% !important;
+            overflow: auto !important;
+            z-index: 200 !important;
+        }
+        
+        .cm-gutters {
+            z-index: 201 !important;
+        }
+        
+        .cm-content {
+            z-index: 201 !important;
+        }
+        
+        /* Push the visualization canvas behind the editor */
+        #test-canvas, canvas[id*="canvas"] {
+            z-index: 1 !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">🎵 Strudel REPL</div>
+            <div class="controls">
+                <button class="btn btn-play" id="playBtn" onclick="togglePlay()">▶ Play</button>
+                <button class="btn btn-stop" onclick="stopPlay()">⏹ Stop</button>
+                <button class="btn btn-secondary" onclick="shuffleDemo()">🎲 Random</button>
+            </div>
+            <div class="hints">
+                <kbd>Ctrl+Enter</kbd> play
+                <kbd>Ctrl+.</kbd> stop
+            </div>
+            <div class="status" id="status">Ready</div>
+        </header>
+        
+        <div class="editor-container" id="editor-container">
+            <strudel-editor id="repl"></strudel-editor>
+        </div>
+    </div>
+    
+    <script>
+        // Demo songs collection
+        const demos = [
+            {
+                name: "Lounge Sponge",
+                code: `// "Lounge Sponge" by Felix Roos
+// Press Ctrl+Enter to play, Ctrl+. to stop
+
+samples('github:tidalcycles/dirt-samples')
+
+stack(
+  note("<c3 a2 f2 g2>/2").sound('sawtooth')
+    .cutoff(500).lpf(sine.range(400,2000).slow(8)),
+  note("<c2 a1 f1 g1>/2").sound('sawtooth').lpf(200),
+  n("0 1 2 3").scale("C:minor").sound('triangle'),
+  s("bd*2,~ cp,hh*4").bank('RolandTR909')
+)`
+            },
+            {
+                name: "Minimal Techno",
+                code: `// Minimal Techno
+samples('github:tidalcycles/dirt-samples')
+
+stack(
+  s("bd*4").gain(1.2),
+  s("~ cp").delay(.5).delaytime(.125),
+  s("hh*8").gain(.5).pan(sine),
+  note("<c2 c2 f2 g2>").sound('sawtooth').lpf(800).decay(.1)
+).cpm(130)`
+            },
+            {
+                name: "Ambient Pad",
+                code: `// Ambient Pad
+stack(
+  note("<C3 E3 G3 B3>").slow(2).sound('sawtooth')
+    .cutoff(sine.range(300, 1500).slow(8))
+    .resonance(10)
+    .attack(0.5).decay(0.5).sustain(0.8).release(2)
+    .room(0.9).size(0.9),
+  note("<C2 G1>").slow(4).sound('sine').gain(0.6)
+).slow(2)`
+            },
+            {
+                name: "Arpeggio",
+                code: `// Arpeggio Pattern
+note("<c4 e4 g4 b4 c5 b4 g4 e4>*2")
+  .sound('triangle')
+  .cutoff(perlin.range(500, 3000).slow(4))
+  .delay(0.5).delaytime(0.125).delayfeedback(0.6)
+  .room(0.5)`
+            },
+            {
+                name: "Polyrhythm",
+                code: `// Polyrhythm
+samples('github:tidalcycles/dirt-samples')
+
+stack(
+  s("bd(3,8)").gain(1.2),
+  s("cp(2,5)").delay(0.3),
+  s("hh(7,12)").gain(0.4),
+  n("0 2 4 7").fast(1.5).scale("C:minor").sound('sine')
+    .decay(0.1).sustain(0)
+)`
+            },
+            {
+                name: "Glitch Beats",
+                code: `// Glitch Beats
+samples('github:tidalcycles/dirt-samples')
+
+s("bd sd, hh*8, ~ [cp cp:1]")
+  .bank('RolandTR909')
+  .sometimes(x => x.speed(2))
+  .rarely(x => x.crush(4))
+  .sometimes(x => x.delay(0.5))`
+            }
+        ];
+        
+        let currentDemo = 0;
+        let isPlaying = false;
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        
+        // Get the editor element
+        function getRepl() {
+            return document.getElementById('repl');
+        }
+        
+        // Wait for the editor to be ready
+        function waitForEditor() {
+            return new Promise((resolve) => {
+                const check = () => {
+                    const repl = getRepl();
+                    if (repl?.editor) {
+                        resolve(repl.editor);
+                    } else {
+                        setTimeout(check, 100);
+                    }
+                };
+                check();
+            });
+        }
+        
+        // Initialize
+        async function init() {
+            const editor = await waitForEditor();
+            
+            console.log('Strudel REPL ready!');
+            console.log('Editor object:', editor);
+            
+            // Log all available methods
+            const methods = [];
+            for (let key in editor) {
+                if (typeof editor[key] === 'function') {
+                    methods.push(key);
+                }
+            }
+            console.log('Available methods:', methods);
+            
+            // Also check prototype
+            const proto = Object.getPrototypeOf(editor);
+            const protoMethods = Object.getOwnPropertyNames(proto).filter(
+                k => typeof proto[k] === 'function' && k !== 'constructor'
+            );
+            console.log('Prototype methods:', protoMethods);
+            
+            // Set initial code
+            editor.setCode(demos[0].code);
+            
+            status.textContent = demos[0].name;
+            
+            // Fix editor height after a short delay
+            setTimeout(() => {
+                fixEditorHeight();
+            }, 200);
+        }
+        
+        function fixEditorHeight() {
+            const container = document.getElementById('editor-container');
+            const repl = document.getElementById('repl');
+            const height = container.offsetHeight;
+            
+            console.log('Fixing editor height to:', height);
+            
+            // Force height on all internal elements
+            const innerDiv = repl.querySelector('div');
+            if (innerDiv) {
+                innerDiv.style.height = height + 'px';
+                innerDiv.style.minHeight = height + 'px';
+            }
+            
+            const cmEditor = repl.querySelector('.cm-editor');
+            if (cmEditor) {
+                cmEditor.style.height = height + 'px';
+                cmEditor.style.minHeight = height + 'px';
+            }
+            
+            const cmScroller = repl.querySelector('.cm-scroller');
+            if (cmScroller) {
+                cmScroller.style.height = height + 'px';
+                cmScroller.style.minHeight = height + 'px';
+            }
+        }
+        
+        // Also fix on window resize
+        window.addEventListener('resize', fixEditorHeight);
+        
+        function updatePlayButton() {
+            if (isPlaying) {
+                playBtn.textContent = '⏸ Pause';
+                playBtn.classList.add('playing');
+                status.classList.add('playing');
+                status.textContent = '♫ Playing...';
+            } else {
+                playBtn.textContent = '▶ Play';
+                playBtn.classList.remove('playing');
+                status.classList.remove('playing');
+                status.textContent = demos[currentDemo].name;
+            }
+        }
+        
+        async function togglePlay() {
+            const editor = await waitForEditor();
+            console.log('togglePlay called, isPlaying:', isPlaying);
+            
+            try {
+                // Use toggle() which handles play/stop
+                editor.toggle();
+                isPlaying = !isPlaying;
+                updatePlayButton();
+            } catch(e) { 
+                console.error('Toggle error:', e);
+                // Fallback: try evaluate for play
+                if (!isPlaying) {
+                    try {
+                        await editor.evaluate();
+                        isPlaying = true;
+                        updatePlayButton();
+                    } catch(e2) {
+                        console.error('Evaluate error:', e2);
+                    }
+                }
+            }
+        }
+        
+        async function stopPlay() {
+            const editor = await waitForEditor();
+            try {
+                editor.stop();
+            } catch(e) { console.error('Stop error:', e); }
+            isPlaying = false;
+            updatePlayButton();
+        }
+        
+        async function shuffleDemo() {
+            await stopPlay();
+            
+            // Pick random demo
+            let next;
+            do {
+                next = Math.floor(Math.random() * demos.length);
+            } while (next === currentDemo && demos.length > 1);
+            
+            currentDemo = next;
+            
+            const editor = await waitForEditor();
+            editor.setCode(demos[currentDemo].code);
+            
+            status.textContent = demos[currentDemo].name;
+        }
+        
+        // Expose for debugging
+        window.getRepl = getRepl;
+        window.demos = demos;
+        
+        // WebSocket connection for receiving commands from server
+        function connectWebSocket() {
+            const ws = new WebSocket(`ws://${window.location.host}/ws`);
+            
+            ws.onopen = () => {
+                console.log('WebSocket connected');
+                const dot = document.createElement('span');
+                dot.style.cssText = 'display:inline-block;width:8px;height:8px;background:#4ade80;border-radius:50%;margin-right:6px;';
+                status.innerHTML = '';
+                status.appendChild(dot);
+                status.appendChild(document.createTextNode('Connected'));
+            };
+            
+            ws.onmessage = async (event) => {
+                const msg = JSON.parse(event.data);
+                console.log('WebSocket message:', msg);
+                
+                const editor = await waitForEditor();
+                
+                switch (msg.type) {
+                    case 'set-code':
+                        editor.setCode(msg.code);
+                        status.textContent = '📝 Code received';
+                        status.style.color = '#60a5fa';
+                        console.log('Code set from server');
+                        // Flash the editor container
+                        const container = document.getElementById('editor-container');
+                        container.style.outline = '2px solid #60a5fa';
+                        setTimeout(() => container.style.outline = '', 300);
+                        break;
+                        
+                    case 'play':
+                        console.log('Received play command');
+                        try {
+                            await editor.evaluate();
+                            isPlaying = true;
+                            updatePlayButton();
+                            status.textContent = '▶ Playing';
+                            status.style.color = '#4ade80';
+                        } catch(e) {
+                            console.error('Play error:', e);
+                        }
+                        break;
+                        
+                    case 'stop':
+                        console.log('Received stop command');
+                        try {
+                            editor.stop();
+                            isPlaying = false;
+                            updatePlayButton();
+                            status.textContent = '⏹ Stopped';
+                            status.style.color = '#ef4444';
+                        } catch(e) {
+                            console.error('Stop error:', e);
+                        }
+                        break;
+                        
+                    case 'replay':
+                        console.log('Received replay command');
+                        try {
+                            // Stop first, then re-evaluate
+                            editor.stop();
+                            status.textContent = '🔄 Restarting...';
+                            status.style.color = '#facc15';
+                            await new Promise(r => setTimeout(r, 100));
+                            await editor.evaluate();
+                            isPlaying = true;
+                            updatePlayButton();
+                            status.textContent = '▶ Playing';
+                            status.style.color = '#4ade80';
+                        } catch(e) {
+                            console.error('Replay error:', e);
+                        }
+                        break;
+                        
+                    case 'connected':
+                        console.log('Server acknowledged connection');
+                        break;
+                }
+            };
+            
+            ws.onclose = () => {
+                console.log('WebSocket disconnected, reconnecting in 2s...');
+                setTimeout(connectWebSocket, 2000);
+            };
+            
+            ws.onerror = (err) => {
+                console.error('WebSocket error:', err);
+            };
+            
+            window.ws = ws;
+        }
+        
+        // Initialize
+        init();
+        connectWebSocket();
+    </script>
+</body>
+</html>

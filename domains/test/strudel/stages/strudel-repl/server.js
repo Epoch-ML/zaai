@@ -1,15 +1,19 @@
 // Strudel REPL Server
-// Evaluates Strudel patterns and returns events
+// Serves the Strudel REPL UI and provides API for automated testing
 
 import express from 'express';
 import cors from 'cors';
 import { WebSocketServer } from 'ws';
 import { createServer } from 'http';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-// Strudel imports
-import { Pattern, TimeSpan, State } from '@strudel/core';
+// Strudel imports for headless testing API
 import { mini } from '@strudel/mini';
 import * as core from '@strudel/core';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 const server = createServer(app);
@@ -19,29 +23,24 @@ const wss = new WebSocketServer({ server, path: '/ws' });
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
-// Strudel context for eval
+// Serve static files (the REPL UI)
+const publicPath = join(__dirname, 'public');
+app.use(express.static(publicPath));
+
+// Strudel context for headless eval
 const strudelContext = {
-    Pattern,
-    TimeSpan,
-    State,
     mini,
-    // Core pattern functions
-    note: core.note,
-    n: core.n,
-    sound: core.sound,
-    s: core.s,
-    gain: core.gain,
-    pan: core.pan,
-    speed: core.speed,
-    begin: core.begin,
-    end: core.end,
-    // Composition
     stack: core.stack,
     cat: core.cat,
     fastcat: core.fastcat,
     slowcat: core.slowcat,
     sequence: core.sequence,
-    // Transformations
+    note: core.note,
+    n: core.n,
+    s: core.s,
+    sound: core.sound,
+    gain: core.gain,
+    pan: core.pan,
     fast: core.fast,
     slow: core.slow,
     rev: core.rev,
@@ -50,25 +49,13 @@ const strudelContext = {
     sometimes: core.sometimes
 };
 
-// Make context available globally for eval
 Object.assign(globalThis, strudelContext);
 
-// State
-let currentPattern = null;
+// State for test API
 let evaluationHistory = [];
 const MAX_HISTORY = 100;
 
-// WebSocket clients
-const clients = new Set();
-
-function broadcastToClients(message) {
-    const data = JSON.stringify(message);
-    for (const client of clients) {
-        if (client.readyState === 1) {
-            client.send(data);
-        }
-    }
-}
+// ========== API Routes for Testing ==========
 
 // Health check
 app.get('/health', (req, res) => {
@@ -77,14 +64,42 @@ app.get('/health', (req, res) => {
         service: 'strudel-repl',
         version: '1.0.0',
         runtime: process.versions.bun ? 'bun' : 'node',
-        uptime: process.uptime()
+        uptime: process.uptime(),
+        mode: 'full-repl'
     });
 });
 
-// Evaluate pattern code
+// Test endpoint - verify strudel core is working
+app.get('/test', (req, res) => {
+    try {
+        const testPattern = mini("c3 d3 e3");
+        const haps = testPattern.queryArc(0, 1);
+        const events = (haps || []).map(h => ({ 
+            value: h.value, 
+            begin: Number(h.part.begin),
+            end: Number(h.part.end)
+        }));
+        
+        res.json({
+            success: true,
+            message: 'Strudel core is working',
+            testEvents: events,
+            eventCount: events.length,
+            availableFunctions: Object.keys(strudelContext)
+        });
+    } catch (err) {
+        res.json({
+            success: false,
+            error: err.message,
+            stack: err.stack
+        });
+    }
+});
+
+// Headless pattern evaluation (for automated testing)
 app.post('/evaluate', async (req, res) => {
     const { code, queryStart = 0, queryEnd = 1 } = req.body;
-
+    
     if (!code) {
         return res.status(400).json({
             success: false,
@@ -94,7 +109,6 @@ app.post('/evaluate', async (req, res) => {
     }
 
     try {
-        // Evaluate the code
         const startTime = Date.now();
         const pattern = eval(code);
 
@@ -102,30 +116,25 @@ app.post('/evaluate', async (req, res) => {
             throw new Error('Code must return a valid Strudel Pattern');
         }
 
-        // Query events from the pattern
-        const span = new TimeSpan(queryStart, queryEnd);
-        const state = new State(span);
-        const haps = pattern.queryArc(span, state);
-
-        // Convert haps to serializable format
-        const events = haps.map(hap => ({
+        const haps = pattern.queryArc(queryStart, queryEnd);
+        
+        const events = (haps || []).map(hap => ({
             value: hap.value,
             whole: hap.whole ? {
-                begin: hap.whole.begin.valueOf(),
-                end: hap.whole.end.valueOf()
+                begin: Number(hap.whole.begin),
+                end: Number(hap.whole.end)
             } : null,
             part: {
-                begin: hap.part.begin.valueOf(),
-                end: hap.part.end.valueOf()
+                begin: Number(hap.part.begin),
+                end: Number(hap.part.end)
             },
             context: hap.context || {}
         }));
 
         const evalTime = Date.now() - startTime;
 
-        // Store in history
         evaluationHistory.unshift({
-            code,
+            code: code.slice(0, 100),
             eventCount: events.length,
             timestamp: new Date().toISOString(),
             evalTime
@@ -133,16 +142,6 @@ app.post('/evaluate', async (req, res) => {
         if (evaluationHistory.length > MAX_HISTORY) {
             evaluationHistory.pop();
         }
-
-        // Update current pattern
-        currentPattern = pattern;
-
-        // Broadcast to WebSocket clients
-        broadcastToClients({
-            type: 'evaluation',
-            eventCount: events.length,
-            evalTime
-        });
 
         res.json({
             success: true,
@@ -156,64 +155,87 @@ app.post('/evaluate', async (req, res) => {
         res.status(400).json({
             success: false,
             error: error.message,
-            errorType: error.constructor.name,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-});
-
-// Analyze pattern without full query
-app.post('/analyze', async (req, res) => {
-    const { code } = req.body;
-
-    try {
-        const pattern = eval(code);
-
-        res.json({
-            success: true,
-            isPattern: pattern instanceof Pattern,
-            hasQueryArc: typeof pattern?.queryArc === 'function',
-            patternType: pattern?.constructor?.name
-        });
-    } catch (error) {
-        res.json({
-            success: false,
-            error: error.message,
             errorType: error.constructor.name
         });
     }
 });
 
-// Get current state
-app.get('/state', (req, res) => {
-    res.json({
-        hasPattern: currentPattern !== null,
-        historyCount: evaluationHistory.length,
-        recentEvaluations: evaluationHistory.slice(0, 10),
-        timestamp: Date.now()
+// Set code in connected browsers (via WebSocket)
+app.post('/set-code', (req, res) => {
+    const { code } = req.body;
+    
+    if (!code) {
+        return res.status(400).json({ success: false, error: 'No code provided' });
+    }
+    
+    // Broadcast to all connected WebSocket clients
+    let sent = 0;
+    clients.forEach(ws => {
+        if (ws.readyState === 1) { // OPEN
+            ws.send(JSON.stringify({ type: 'set-code', code }));
+            sent++;
+        }
     });
+    
+    console.log(`[set-code] Sent to ${sent} clients`);
+    
+    res.json({ success: true, clientCount: sent });
+});
+
+// Trigger play in connected browsers
+app.post('/play', (req, res) => {
+    let sent = 0;
+    clients.forEach(ws => {
+        if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: 'play' }));
+            sent++;
+        }
+    });
+    console.log(`[play] Sent to ${sent} clients`);
+    res.json({ success: true, clientCount: sent });
+});
+
+// Trigger stop in connected browsers
+app.post('/stop', (req, res) => {
+    let sent = 0;
+    clients.forEach(ws => {
+        if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: 'stop' }));
+            sent++;
+        }
+    });
+    console.log(`[stop] Sent to ${sent} clients`);
+    res.json({ success: true, clientCount: sent });
+});
+
+// Trigger replay (stop + play) in connected browsers
+app.post('/replay', (req, res) => {
+    let sent = 0;
+    clients.forEach(ws => {
+        if (ws.readyState === 1) {
+            ws.send(JSON.stringify({ type: 'replay' }));
+            sent++;
+        }
+    });
+    console.log(`[replay] Sent to ${sent} clients`);
+    res.json({ success: true, clientCount: sent });
 });
 
 // Get evaluation history
 app.get('/history', (req, res) => {
-    const limit = Math.min(parseInt(req.query.limit) || 20, MAX_HISTORY);
     res.json({
-        history: evaluationHistory.slice(0, limit),
+        history: evaluationHistory.slice(0, 20),
         total: evaluationHistory.length
     });
 });
 
 // Reset state
 app.post('/reset', (req, res) => {
-    currentPattern = null;
     evaluationHistory = [];
-
-    broadcastToClients({ type: 'reset' });
-
     res.json({ success: true, message: 'State reset' });
 });
 
-// Batch evaluate multiple patterns
+// Batch evaluate (for test suites)
 app.post('/batch-evaluate', async (req, res) => {
     const { patterns, queryStart = 0, queryEnd = 1 } = req.body;
 
@@ -224,70 +246,52 @@ app.post('/batch-evaluate', async (req, res) => {
         });
     }
 
-    const results = [];
-
-    for (const item of patterns) {
+    const results = patterns.map(item => {
         const code = typeof item === 'string' ? item : item.code;
         const name = typeof item === 'object' ? item.name : undefined;
 
         try {
             const pattern = eval(code);
-            const span = new TimeSpan(queryStart, queryEnd);
-            const state = new State(span);
-            const haps = pattern.queryArc(span, state);
-
-            results.push({
+            const haps = pattern.queryArc(queryStart, queryEnd);
+            return {
                 name,
                 success: true,
-                eventCount: haps.length,
-                events: haps.map(h => ({
+                eventCount: haps?.length || 0,
+                events: (haps || []).map(h => ({
                     value: h.value,
-                    part: { begin: h.part.begin.valueOf(), end: h.part.end.valueOf() }
+                    part: {
+                        begin: Number(h.part.begin),
+                        end: Number(h.part.end)
+                    }
                 }))
-            });
+            };
         } catch (error) {
-            results.push({
-                name,
-                success: false,
-                error: error.message
-            });
+            return { name, success: false, error: error.message };
         }
-    }
+    });
 
     res.json({ results, total: results.length });
 });
 
-// WebSocket handling
-wss.on('connection', (ws) => {
+// WebSocket for live updates
+const clients = new Set();
+wss.on('connection', ws => {
     clients.add(ws);
-
-    ws.on('close', () => {
-        clients.delete(ws);
-    });
-
-    ws.on('message', (data) => {
-        try {
-            const message = JSON.parse(data);
-            // Handle incoming WebSocket commands if needed
-            if (message.type === 'evaluate') {
-                // Could add async evaluation here
-            }
-        } catch (e) {
-            // Ignore invalid JSON
-        }
-    });
-
-    // Send welcome message
-    ws.send(JSON.stringify({
-        type: 'connected',
-        message: 'Connected to Strudel REPL'
-    }));
+    ws.on('close', () => clients.delete(ws));
+    ws.send(JSON.stringify({ type: 'connected', message: 'Connected to Strudel REPL server' }));
 });
 
 // Start server
 const PORT = process.env.PORT || 3333;
 server.listen(PORT, () => {
-    console.log(`Strudel REPL server running on http://localhost:${PORT}`);
-    console.log(`WebSocket available at ws://localhost:${PORT}/ws`);
-    console.log(`Runtime: ${process.versions.bun ? 'Bun ' + process.versions.bun : 'Node.js ' + process.version}`);
+    console.log('');
+    console.log('  🎵 Strudel REPL Server');
+    console.log('  ──────────────────────');
+    console.log(`  REPL UI:   http://localhost:${PORT}`);
+    console.log(`  Test API:  http://localhost:${PORT}/test`);
+    console.log(`  WebSocket: ws://localhost:${PORT}/ws`);
+    console.log(`  Runtime:   ${process.versions.bun ? 'Bun ' + process.versions.bun : 'Node.js ' + process.version}`);
+    console.log('');
+    console.log('  Press Ctrl+C to stop');
+    console.log('');
 });
