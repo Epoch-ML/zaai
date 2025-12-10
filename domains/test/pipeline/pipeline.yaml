@@ -1,0 +1,345 @@
+name: "pipeline"
+category: "Pipeline Working Directory Test"
+description: |
+  Test manifest for verifying pipeline stage working directory configuration.
+  
+  Tests three scenarios:
+  1. Local execution (no path specified) - backward compatible
+  2. Environment execution (environment_path) - runs in agent's environment
+  3. Workspace execution (workspace_path) - runs in agent's workspace
+  
+  Each stage creates or reads files to verify the correct working directory.
+
+# No specs/tests, we're just actuating the pipeline stages for now
+specs: []
+tests: []
+
+references:
+  - description: "Test file for environment stage to read"
+    file_path: "env_input.txt"
+    environment_path: "project/env_input.txt"
+    format: "txt"
+    required: true
+    read_only: true
+
+  - description: "Test file in environment subdirectory"
+    file_path: "subdir_input.txt"
+    environment_path: "project/subdir/input.txt"
+    format: "txt"
+    required: true
+    read_only: true
+
+  - description: "Test file for workspace stage to read"
+    file_path: "ws_input.txt"
+    workspace_path: "inputs/ws_input.txt"
+    format: "txt"
+    required: true
+    read_only: true
+
+# CONFIGS
+configs:
+  - name: "test_config"
+    description: "Configuration for working directory tests"
+    value:
+      test_string: "Hello from config!"
+      expected_files:
+        environment: "env_input.txt"
+        workspace: "ws_input.txt"
+
+# PIPELINE STAGES
+stages:
+  
+  # Stage 1: Local execution (no path - backward compatible)
+  - name: "test_local_execution"
+    type: before
+    description: "Test stage running in local/current directory (no path specified)"
+    preconditions: "None"
+    postconditions: "Logged current working directory"
+    # No environment_path or workspace_path - runs locally
+    code: |
+      import os
+      import logging
+      from pathlib import Path
+      
+      L = logging.getLogger(__name__)
+      
+      cwd = os.getcwd()
+      L.info(f"[test_local_execution] Current working directory: {cwd}")
+      
+      # Output to agent
+      agent.output(
+          f"📍 [test_local_execution] Running in LOCAL directory:\n   {cwd}",
+          channel_name="zerg_output"
+      )
+      
+      # Verify we can access agent components
+      has_env = hasattr(agent, 'environment') and agent.environment is not None
+      has_ws = hasattr(agent, 'workspace') and agent.workspace is not None
+      
+      L.info(f"[test_local_execution] Agent has environment: {has_env}")
+      L.info(f"[test_local_execution] Agent has workspace: {has_ws}")
+      
+      agent.output(
+          f"✓ [test_local_execution] Agent components available:\n"
+          f"   environment: {has_env}\n"
+          f"   workspace: {has_ws}",
+          channel_name="zerg_output"
+      )
+
+  # Stage 2: Environment execution - read file
+  - name: "test_environment_read"
+    type: before
+    description: "Test reading a file from the environment directory"
+    preconditions: "env_input.txt exists in environment/project/"
+    postconditions: "Successfully read file content"
+    environment_path: "project"
+    code: |
+      import os
+      import logging
+      from pathlib import Path
+      
+      L = logging.getLogger(__name__)
+      
+      cwd = os.getcwd()
+      L.info(f"[test_environment_read] Working directory: {cwd}")
+      
+      agent.output(
+          f"📂 [test_environment_read] Running in ENVIRONMENT:\n   {cwd}",
+          channel_name="zerg_output"
+      )
+      
+      # Try to read the file using relative path (should work because cwd is set)
+      input_file = Path("env_input.txt")
+      
+      if input_file.exists():
+          content = input_file.read_text().strip()
+          L.info(f"[test_environment_read] Read file content: {content}")
+          agent.output(
+              f"✓ [test_environment_read] Successfully read env_input.txt:\n"
+              f"   Content: '{content}'",
+              channel_name="zerg_output"
+          )
+      else:
+          L.error(f"[test_environment_read] File not found: {input_file}")
+          agent.output(
+              f"❌ [test_environment_read] File not found: {input_file}\n"
+              f"   Expected in: {cwd}",
+              channel_name="zerg_output"
+          )
+          # List what IS in the directory
+          files = list(Path(".").iterdir())
+          L.info(f"[test_environment_read] Directory contents: {files}")
+
+  # Stage 3: Environment execution - write file
+  - name: "test_environment_write"
+    type: before
+    description: "Test writing a file to the environment directory"
+    preconditions: "Environment directory exists"
+    postconditions: "Output file created in environment/project/outputs/"
+    environment_path: "project"
+    code: |
+      import os
+      import logging
+      from pathlib import Path
+      from datetime import datetime
+      
+      L = logging.getLogger(__name__)
+      
+      cwd = os.getcwd()
+      L.info(f"[test_environment_write] Working directory: {cwd}")
+      
+      # Create outputs subdirectory
+      output_dir = Path("outputs")
+      output_dir.mkdir(exist_ok=True)
+      
+      # Write a test file
+      output_file = output_dir / "env_output.txt"
+      timestamp = datetime.now().isoformat()
+      content = f"Written by test_environment_write stage at {timestamp}\nWorking dir: {cwd}"
+      
+      output_file.write_text(content)
+      
+      L.info(f"[test_environment_write] Wrote file: {output_file}")
+      agent.output(
+          f"✓ [test_environment_write] Created file:\n"
+          f"   Path: {output_file}\n"
+          f"   Full path: {output_file.absolute()}",
+          channel_name="zerg_output"
+      )
+
+  # Stage 4: Environment subdirectory execution
+  - name: "test_environment_subdir"
+    type: before
+    description: "Test running in a subdirectory of the environment"
+    preconditions: "subdir/input.txt exists in environment/project/subdir/"
+    postconditions: "Successfully read file from subdirectory"
+    environment_path: "project/subdir"
+    code: |
+      import os
+      import logging
+      from pathlib import Path
+      
+      L = logging.getLogger(__name__)
+      
+      cwd = os.getcwd()
+      L.info(f"[test_environment_subdir] Working directory: {cwd}")
+      
+      agent.output(
+          f"📂 [test_environment_subdir] Running in ENVIRONMENT SUBDIR:\n   {cwd}",
+          channel_name="zerg_output"
+      )
+      
+      # Read file using relative path
+      input_file = Path("input.txt")
+      
+      if input_file.exists():
+          content = input_file.read_text().strip()
+          L.info(f"[test_environment_subdir] Read: {content}")
+          agent.output(
+              f"✓ [test_environment_subdir] Read input.txt:\n   '{content}'",
+              channel_name="zerg_output"
+          )
+      else:
+          L.warning(f"[test_environment_subdir] File not found: {input_file}")
+          agent.output(
+              f"⚠️ [test_environment_subdir] File not found (may not be loaded yet)",
+              channel_name="zerg_output"
+          )
+
+  # Stage 5: Workspace execution - write file
+  - name: "test_workspace_write"
+    type: after
+    description: "Test writing output to the workspace directory"
+    preconditions: "Workspace exists"
+    postconditions: "Report file created in workspace/reports/"
+    workspace_path: "reports"
+    code: |
+      import os
+      import json
+      import logging
+      from pathlib import Path
+      from datetime import datetime
+      
+      L = logging.getLogger(__name__)
+      
+      cwd = os.getcwd()
+      L.info(f"[test_workspace_write] Working directory: {cwd}")
+      
+      agent.output(
+          f"📁 [test_workspace_write] Running in WORKSPACE:\n   {cwd}",
+          channel_name="zerg_output"
+      )
+      
+      # Create a report file
+      report = {
+          "test": "pipeline_workdir_test",
+          "timestamp": datetime.now().isoformat(),
+          "working_directory": cwd,
+          "stages_tested": [
+              "test_local_execution",
+              "test_environment_read",
+              "test_environment_write",
+              "test_environment_subdir",
+              "test_workspace_write",
+          ],
+          "status": "completed"
+      }
+      
+      report_file = Path("test_report.json")
+      report_file.write_text(json.dumps(report, indent=2))
+      
+      L.info(f"[test_workspace_write] Created report: {report_file}")
+      agent.output(
+          f"✓ [test_workspace_write] Created report:\n"
+          f"   {report_file.absolute()}",
+          channel_name="zerg_output"
+      )
+
+  # Stage 6: Workspace execution - read file
+  - name: "test_workspace_read"
+    type: after
+    description: "Test reading a file from the workspace inputs directory"
+    preconditions: "ws_input.txt exists in workspace/inputs/"
+    postconditions: "Successfully read workspace input file"
+    workspace_path: "inputs"
+    code: |
+      import os
+      import logging
+      from pathlib import Path
+      
+      L = logging.getLogger(__name__)
+      
+      cwd = os.getcwd()
+      L.info(f"[test_workspace_read] Working directory: {cwd}")
+      
+      agent.output(
+          f"📁 [test_workspace_read] Running in WORKSPACE/inputs:\n   {cwd}",
+          channel_name="zerg_output"
+      )
+      
+      input_file = Path("ws_input.txt")
+      
+      if input_file.exists():
+          content = input_file.read_text().strip()
+          L.info(f"[test_workspace_read] Read: {content}")
+          agent.output(
+              f"✓ [test_workspace_read] Read ws_input.txt:\n   '{content}'",
+              channel_name="zerg_output"
+          )
+      else:
+          L.warning(f"[test_workspace_read] File not found: {input_file}")
+          files = list(Path(".").iterdir()) if Path(".").exists() else []
+          agent.output(
+              f"⚠️ [test_workspace_read] File not found\n"
+              f"   Directory contents: {files}",
+              channel_name="zerg_output"
+          )
+
+  # Stage 7: Verify all outputs (runs locally to check everything)
+  - name: "verify_outputs"
+    type: post
+    description: "Verify all test outputs were created correctly"
+    preconditions: "All other stages completed"
+    postconditions: "Verification report generated"
+    # No path - runs locally, uses agent to access environment/workspace
+    code: |
+      import os
+      import logging
+      from pathlib import Path
+      
+      L = logging.getLogger(__name__)
+      
+      agent.output(
+          f"🔍 [verify_outputs] Verifying test outputs...",
+          channel_name="zerg_output"
+      )
+      
+      results = []
+      
+      # Check environment output
+      if hasattr(agent, 'environment') and agent.environment:
+          env_root = Path(agent.environment.root_dir)
+          env_output = env_root / "project" / "outputs" / "env_output.txt"
+          
+          if env_output.exists():
+              results.append(("environment output", "✓ PASS", str(env_output)))
+          else:
+              results.append(("environment output", "✗ FAIL", f"Not found: {env_output}"))
+      
+      # Check workspace output
+      if hasattr(agent, 'workspace') and agent.workspace:
+          ws_root = Path(agent.workspace.root_dir)
+          ws_output = ws_root / "reports" / "test_report.json"
+          
+          if ws_output.exists():
+              results.append(("workspace output", "✓ PASS", str(ws_output)))
+          else:
+              results.append(("workspace output", "✗ FAIL", f"Not found: {ws_output}"))
+      
+      # Report results
+      output_lines = ["📋 [verify_outputs] Results:"]
+      for name, status, detail in results:
+          output_lines.append(f"   {status} {name}")
+          L.info(f"[verify_outputs] {name}: {status} - {detail}")
+      
+      agent.output("\n".join(output_lines), channel_name="zerg_output")

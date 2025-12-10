@@ -1,0 +1,2 @@
+Hello from subdirectory!
+This tests nested environment_path like "project/subdir".

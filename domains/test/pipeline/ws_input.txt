@@ -1,0 +1,2 @@
+Hello from workspace input file!
+This file tests that workspace_path works correctly.

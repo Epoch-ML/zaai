@@ -5,6 +5,7 @@ manifests:
 #- !include templates/j2_template.yaml
 - !include strudel/strudel.yaml
 - !include git/git.yaml
+- !include pipeline/pipeline.yaml
 - !include glob/glob.yaml
 - !include python/python.yaml
 - !include workflows/workflows.yaml

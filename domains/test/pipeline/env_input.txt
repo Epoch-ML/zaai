@@ -1,0 +1,2 @@
+Hello from environment input file!
+This file tests that environment_path works correctly.
