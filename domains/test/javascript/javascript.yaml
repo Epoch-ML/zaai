@@ -6,169 +6,211 @@ description: |
   analysis, and visualization. Demonstrates proper module structure with
   ES6 imports and cross-module dependencies.
 
-specs:
-  - "Node.js 18+ required"
-  - "ES2022 module syntax"
-  - "Async/await support"
+stages:
+  - name: inline-javascript-stage
+    type: before
+    description: "Inline javascript code"
+    code_to_run: !js/code |
+      # Output to Zerg channel
+      
+      zerg.output(
+          "[inline-python-stage] Running python stage inline code",
+          channel_name="zerg_output"
+      )
 
-tests:
-  - "Unit tests with Jest"
-  - "Integration tests for cross-module functionality"
-  - "Performance benchmarks"
+  # - name: verify environment
+  #   type: before
+  #   description: Verifies Node.js environment, version, and required dependencies
+  #   preconditions: None
+  #   postconditions: Node.js environment is valid and all dependencies are available
+  #   code_to_run: !js/program |
+  #     const { execSync } = require('child_process');
+  #     const fs = require('fs');
+  #     const path = require('path');
+      
+  #     async function verifyEnvironment() {
+  #       console.log('=== Verifying Node.js Environment ===\n');
+        
+  #       // Check Node.js version
+  #       const nodeVersion = process.version;
+  #       const majorVersion = parseInt(nodeVersion.slice(1).split('.')[0]);
+        
+  #       if (majorVersion < 16) {
+  #         throw new Error(`Node.js version ${nodeVersion} is too old. Requires v16+`);
+  #       }
+  #       console.log(`✓ Node.js version: ${nodeVersion}`);
+        
+  #       // Check for package.json
+  #       const packageJsonPath = path.join(process.cwd(), 'package.json');
+  #       if (!fs.existsSync(packageJsonPath)) {
+  #         throw new Error('package.json not found in current directory');
+  #       }
+  #       console.log('✓ package.json found');
+        
+  #       // Parse and validate package.json
+  #       const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+  #       console.log(`✓ Package name: ${packageJson.name || 'unnamed'}`);
+  #       console.log(`✓ Package version: ${packageJson.version || 'unversioned'}`);
+        
+  #       // Check for required dependencies
+  #       const requiredDeps = ['lodash', 'axios'];
+  #       const installedDeps = {
+  #         ...packageJson.dependencies,
+  #         ...packageJson.devDependencies
+  #       };
+        
+  #       for (const dep of requiredDeps) {
+  #         if (!installedDeps[dep]) {
+  #           console.warn(`⚠ Missing recommended dependency: ${dep}`);
+  #         } else {
+  #           console.log(`✓ Dependency available: ${dep}`);
+  #         }
+  #       }
+        
+  #       // Check if node_modules exists
+  #       const nodeModulesPath = path.join(process.cwd(), 'node_modules');
+  #       if (!fs.existsSync(nodeModulesPath)) {
+  #         console.log('\n⚠ node_modules not found. Running npm install...');
+  #         execSync('npm install', { stdio: 'inherit' });
+  #       }
+  #       console.log('✓ node_modules directory exists');
+        
+  #       console.log('\n=== Environment Verification Complete ===');
+  #       return { success: true, nodeVersion, packageJson };
+  #     }
+      
+  #     verifyEnvironment()
+  #       .then(result => console.log('\nResult:', JSON.stringify(result, null, 2)))
+  #       .catch(err => {
+  #         console.error('\nVerification failed:', err.message);
+  #         process.exit(1);
+  #       });
 
-references:
-  # Main entry point
-  - description: "Main application entry point"
-    file_path: "index.js"
-    environment_path: "src/index.js"
-    format: "javascript"
-    required: true
-    read_only: true
+  # - name: stage data
+  #   type: before
+  #   description: Sets up test data fixtures for the analytics platform
+  #   preconditions: Valid Node.js environment per the verify environment stage
+  #   postconditions: Test data fixtures are created and available for tests
+  #   code_to_run: !js/program |
+  #     const fs = require('fs');
+  #     const path = require('path');
+      
+  #     async function stageTestData() {
+  #       console.log('=== Staging Test Data ===\n');
+        
+  #       const fixturesDir = path.join(process.cwd(), 'test', 'fixtures');
+        
+  #       // Create fixtures directory if it doesn't exist
+  #       if (!fs.existsSync(fixturesDir)) {
+  #         fs.mkdirSync(fixturesDir, { recursive: true });
+  #         console.log(`✓ Created fixtures directory: ${fixturesDir}`);
+  #       }
+        
+  #       // Sample CSV data
+  #       const csvData = `id,name,value,category,timestamp
+  #     1,Alpha,100,A,2024-01-01T00:00:00Z
+  #     2,Beta,250,B,2024-01-02T00:00:00Z
+  #     3,Gamma,175,A,2024-01-03T00:00:00Z
+  #     4,Delta,300,C,2024-01-04T00:00:00Z
+  #     5,Epsilon,125,B,2024-01-05T00:00:00Z`;
+        
+  #       fs.writeFileSync(path.join(fixturesDir, 'sample-data.csv'), csvData);
+  #       console.log('✓ Created sample-data.csv');
+        
+  #       // Sample JSON data
+  #       const jsonData = {
+  #         metadata: {
+  #           source: 'test-fixture',
+  #           version: '1.0.0',
+  #           createdAt: new Date().toISOString()
+  #         },
+  #         records: [
+  #           { id: 1, name: 'Record One', metrics: { views: 100, clicks: 25 } },
+  #           { id: 2, name: 'Record Two', metrics: { views: 200, clicks: 50 } },
+  #           { id: 3, name: 'Record Three', metrics: { views: 150, clicks: 30 } }
+  #         ]
+  #       };
+        
+  #       fs.writeFileSync(
+  #         path.join(fixturesDir, 'sample-data.json'),
+  #         JSON.stringify(jsonData, null, 2)
+  #       );
+  #       console.log('✓ Created sample-data.json');
+        
+  #       // Sample configuration
+  #       const configData = {
+  #         platform: {
+  #           name: 'Analytics Platform JS',
+  #           environment: 'test'
+  #         },
+  #         processing: {
+  #           maxWorkers: 2,
+  #           batchSize: 100,
+  #           cacheEnabled: false
+  #         },
+  #         visualization: {
+  #           defaultTheme: 'test',
+  #           exportFormats: ['json']
+  #         }
+  #       };
+        
+  #       fs.writeFileSync(
+  #         path.join(fixturesDir, 'test-config.json'),
+  #         JSON.stringify(configData, null, 2)
+  #       );
+  #       console.log('✓ Created test-config.json');
+        
+  #       console.log('\n=== Test Data Staging Complete ===');
+  #       return { success: true, fixturesDir, filesCreated: 3 };
+  #     }
+      
+  #     stageTestData()
+  #       .then(result => console.log('\nResult:', JSON.stringify(result, null, 2)))
+  #       .catch(err => {
+  #         console.error('\nStaging failed:', err.message);
+  #         process.exit(1);
+  #       });
 
-  # Core module files
-  - description: "Core base classes and interfaces"
-    file_path: "core/base.js"
-    environment_path: "src/core/base.js"
-    format: "javascript"
-    required: true
-    read_only: true
+  # - name: initialize platform
+  #   type: before
+  #   description: Initializes the analytics platform with test configuration
+  #   preconditions: Test data staged successfully
+  #   postconditions: Platform is initialized and ready for testing
+  #   code_to_run: !javascript/file stages/3-initialize-platform.js
 
-  - description: "Core exception definitions"
-    file_path: "core/exceptions.js"
-    environment_path: "src/core/exceptions.js"
-    format: "javascript"
-    required: true
-    read_only: true
+specs: []
+tests: 
+  - description: |
+      Test Core module base class functionality
+    preconditions: |
+      Core module is available and can be imported
+    postconditions: |
+      BaseComponent can be instantiated;
+      Component registry tracks all registered components;
+      Validators correctly validate input data;
+      Configuration manager loads and merges configs;
+    function_to_run: !js/file tests/1-test-core-module.js
 
-  - description: "Core validation utilities"
-    file_path: "core/validators.js"
-    environment_path: "src/core/validators.js"
-    format: "javascript"
-    required: true
-    read_only: true
+  # - description: |
+  #     Test Data Ingestion from CSV files
+  #   preconditions: |
+  #     Test CSV fixtures are staged;
+  #     Ingestion module is available;
+  #   postconditions: |
+  #     CSV parser correctly parses sample-data.csv;
+  #     Schema detection identifies column types;
+  #     All 5 records are loaded with correct values;
+  #     Data types are correctly inferred (number, string, date);
+  #   function_to_run: !javascript/file tests/2-test-csv-ingestion.js
 
-  - description: "Core configuration management"
-    file_path: "core/config.js"
-    environment_path: "src/core/config.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Core component registry"
-    file_path: "core/registry.js"
-    environment_path: "src/core/registry.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  # Ingestion module files
-  - description: "Data source definitions"
-    file_path: "ingestion/sources.js"
-    environment_path: "src/ingestion/sources.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Data source connectors"
-    file_path: "ingestion/connectors.js"
-    environment_path: "src/ingestion/connectors.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Data format parsers"
-    file_path: "ingestion/parsers.js"
-    environment_path: "src/ingestion/parsers.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Schema detection and validation"
-    file_path: "ingestion/schema.js"
-    environment_path: "src/ingestion/schema.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Data loader orchestration"
-    file_path: "ingestion/loader.js"
-    environment_path: "src/ingestion/loader.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  # Processing module files
-  - description: "Main data processor"
-    file_path: "processing/processor.js"
-    environment_path: "src/processing/processor.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Data transformation utilities"
-    file_path: "processing/transformers.js"
-    environment_path: "src/processing/transformers.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Data aggregation functions"
-    file_path: "processing/aggregators.js"
-    environment_path: "src/processing/aggregators.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Processing pipeline management"
-    file_path: "processing/pipeline.js"
-    environment_path: "src/processing/pipeline.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Processing cache implementation"
-    file_path: "processing/cache.js"
-    environment_path: "src/processing/cache.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  # Visualization module files
-  - description: "Chart generation utilities"
-    file_path: "visualization/charts.js"
-    environment_path: "src/visualization/charts.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Report generation and building"
-    file_path: "visualization/reports.js"
-    environment_path: "src/visualization/reports.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Data export utilities"
-    file_path: "visualization/exporters.js"
-    environment_path: "src/visualization/exporters.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  - description: "Visualization templates"
-    file_path: "visualization/templates.js"
-    environment_path: "src/visualization/templates.js"
-    format: "javascript"
-    required: true
-    read_only: true
-
-  # Package configuration
-  - description: "NPM package configuration"
-    file_path: "package.json"
-    environment_path: "package.json"
-    format: "json"
-    required: true
-    read_only: true
+references: []
+  # # The code
+  # - description: "javascript environment"
+  #   file_path: "src/**/*.*"
+  #   environment_path: "src"
+  #   format: "glob"
+  #   required: true
+  #   read_only: true
 
 configs: 
   - name: "default_config"

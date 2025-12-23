@@ -8,6 +8,18 @@ description: |
 specs: []
 tests: []
 
+stages:
+  - name: inline-python-stage
+    type: before
+    description: "Inline Python setup code"
+    code_to_run: !python/code |
+      # Output to Zerg channel
+      
+      zerg.output(
+          f"[inline-python-stage] Running python stage inline code",
+          channel_name="zerg_output"
+      )
+
 references:
   # The code
   - description: "Python environment"
