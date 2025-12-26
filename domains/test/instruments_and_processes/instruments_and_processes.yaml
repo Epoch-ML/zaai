@@ -12,7 +12,7 @@ instruments:
     enabled: true
     cacheable: true
     cache_ttl_seconds: 60
-    code: |
+    code_to_run: |
       def measure(self, environment):
           """Count all files in the environment."""
           return len(environment.files)
@@ -22,7 +22,7 @@ instruments:
     enabled: true
     cacheable: true
     cache_ttl_seconds: 60
-    code: |
+    code_to_run: |
       def measure(self, environment):
           """Count all directories in the environment."""
           return len(environment.directories)
@@ -32,7 +32,7 @@ instruments:
     enabled: true
     cacheable: true
     cache_ttl_seconds: 120
-    code: |
+    code_to_run: |
       def measure(self, environment):
           """Analyze file type distribution."""
           from collections import Counter
@@ -50,7 +50,7 @@ instruments:
     enabled: true
     cacheable: true
     cache_ttl_seconds: 300
-    code: |
+    code_to_run: |
       def measure(self, environment):
           """Count lines of code across all source files."""
           from zerg.environment.fs.files.source.base import FSSourceFile
@@ -89,7 +89,7 @@ instruments:
     description: "Check syntax validity of all source files"
     enabled: true
     cacheable: false
-    code: |
+    code_to_run: |
       def measure(self, environment):
           """Check syntax of all source files."""
           from zerg.environment.fs.files.source.base import FSSourceFile
@@ -128,7 +128,7 @@ instruments:
     enabled: true
     cacheable: true
     cache_ttl_seconds: 60
-    code: |
+    code_to_run: |
       def measure(self, environment):
           """Perform comprehensive health check."""
           file_count = len(environment.files)
@@ -177,7 +177,7 @@ instruments:
     enabled: true
     cacheable: true
     cache_ttl_seconds: 300
-    code: |
+    code_to_run: |
       def measure(self, environment):
           """Estimate test coverage by analyzing test files."""
           from pathlib import Path
@@ -205,7 +205,7 @@ instruments:
     enabled: true
     cacheable: true
     cache_ttl_seconds: 60
-    code: |
+    code_to_run: |
       def measure(self, environment):
           """Analyze spec completion status."""
           specs = getattr(environment, 'specs', [])
@@ -226,7 +226,7 @@ instruments:
 processes:
   - name: "cleanup_empty_directories"
     description: "Remove empty directories from the environment"
-    code: |
+    code_to_run: |
       def execute(self, environment, config=None):
           """Remove empty directories."""
           import shutil
@@ -276,7 +276,7 @@ processes:
 
   - name: "normalize_file_extensions"
     description: "Standardize file extensions to lowercase"
-    code: |
+    code_to_run: |
       def execute(self, environment, config=None):
           """Normalize file extensions to lowercase."""
           import shutil
@@ -318,7 +318,7 @@ processes:
 
   - name: "format_python_files"
     description: "Format Python files using black"
-    code: |
+    code_to_run: |
       def execute(self, environment, config=None):
           """Format Python files."""
           from zerg.environment.fs.files.source.python import FSPythonFile
@@ -355,7 +355,7 @@ processes:
 
   - name: "sync_from_filesystem"
     description: "Sync environment with actual filesystem state"
-    code: |
+    code_to_run: |
       def execute(self, environment, config=None):
           """Sync the environment with the filesystem."""
           detect_changes = config.get('detect_changes', True) if config else True
@@ -373,7 +373,7 @@ processes:
 
   - name: "cleanup_temp_files"
     description: "Remove temporary and cache files"
-    code: |
+    code_to_run: |
       def execute(self, environment, config=None):
           """Remove temporary files matching common patterns."""
           import fnmatch
