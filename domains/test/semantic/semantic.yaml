@@ -1,0 +1,520 @@
+name: "semantics"
+category: "JavaScript Environment"
+description: |
+  A comprehensive data analytics platform built with pure JavaScript
+  featuring multiple interconnected modules for data ingestion, processing,
+  analysis, and visualization.
+
+# =============================================================================
+# RULES SECTION
+# =============================================================================
+# Reusable semantic rules with code and parameter definitions.
+# Rules are referenced by name in specs.
+
+rules:
+  # ---------------------------------------------------------------------------
+  # Code Quality Rules
+  # ---------------------------------------------------------------------------
+  - name: no_repeated_instantiation
+    description: |
+      Detects expensive class instantiation inside loops. Classes like Client,
+      Session, Connection should be instantiated once and reused.
+    code: !js/file rules/no-repeated-instantiation.js
+    params:
+      expensive_classes:
+        type: list
+        description: "Class names considered expensive to instantiate"
+        default:
+          - Client
+          - Session
+          - Connection
+
+  - name: no_console_in_production
+    description: |
+      Ensures console.log/warn/error calls are not left in production code.
+      Debug logging should use a proper logging framework.
+    code: !js/file rules/no-console-in-production.js
+    params:
+      allowed_in_tests:
+        type: boolean
+        description: "Whether to allow console in test files"
+        default: true
+
+  - name: no_hardcoded_credentials
+    description: |
+      Scans for hardcoded passwords, API keys, tokens, and secrets.
+      Credentials should come from environment variables or secure vaults.
+    code: !js/file rules/no-hardcoded-credentials.js
+    params:
+      suspicious_names:
+        type: list
+        description: "Variable/property names that suggest credentials"
+        default:
+          - password
+          - secret
+          - apiKey
+          - api_key
+          - token
+          - credential
+          - authToken
+          - privateKey
+
+  # ---------------------------------------------------------------------------
+  # Async/Promise Rules  
+  # ---------------------------------------------------------------------------
+  - name: no_unhandled_promises
+    description: |
+      Ensures all promises have proper error handling via .catch() or try/catch
+      in async functions. Unhandled rejections crash Node.js.
+    code: !js/file rules/no-unhandled-promises.js
+    params:
+      check_async_functions:
+        type: boolean
+        default: true
+      check_then_chains:
+        type: boolean
+        default: true
+
+  - name: no_sync_in_async
+    description: |
+      Detects synchronous blocking calls inside async functions.
+      Use async alternatives (fs.promises, setTimeout, etc).
+    code: !js/file rules/no-sync-in-async.js
+    params:
+      sync_calls:
+        type: list
+        description: "Synchronous function calls to flag"
+        default:
+          - fs.readFileSync
+          - fs.writeFileSync
+          - fs.existsSync
+          - execSync
+          - spawnSync
+
+  # ---------------------------------------------------------------------------
+  # Error Handling Rules
+  # ---------------------------------------------------------------------------
+  - name: no_empty_catch
+    description: |
+      Catches must not be empty - at minimum log the error or rethrow.
+      Empty catches hide bugs and make debugging impossible.
+    code: !js/file rules/no-empty-catch.js
+    params: {}
+
+  - name: no_generic_catch
+    description: |
+      Catch blocks should handle specific error types when possible,
+      not just catch everything and handle uniformly.
+    code: !js/file rules/no-generic-catch.js
+    params:
+      min_catch_body_lines:
+        type: number
+        description: "Minimum lines in catch body to be considered non-trivial"
+        default: 2
+
+  # ---------------------------------------------------------------------------
+  # Architecture Rules
+  # ---------------------------------------------------------------------------
+  - name: requires_jsdoc
+    description: |
+      Public functions and classes must have JSDoc comments documenting
+      parameters, return types, and thrown errors.
+    code: !js/file rules/requires-jsdoc.js
+    params:
+      require_param_types:
+        type: boolean
+        default: true
+      require_return_type:
+        type: boolean
+        default: true
+      require_throws:
+        type: boolean
+        default: false
+
+  - name: max_function_length
+    description: |
+      Functions should not exceed a maximum line count. Long functions
+      should be broken into smaller, focused units.
+    code: !js/file rules/max-function-length.js
+    params:
+      max_lines:
+        type: number
+        description: "Maximum allowed lines per function"
+        default: 50
+      exclude_patterns:
+        type: list
+        description: "Function name patterns to exclude"
+        default: []
+
+# =============================================================================
+# PATTERN SETS
+# =============================================================================
+# Reusable file targeting patterns, similar to references.
+
+patterns:
+  - name: core_modules
+    description: "Core module source files"
+    file_path: "src/core/**/*.js"
+    format: glob
+    
+  - name: ingestion_modules
+    description: "Data ingestion module files"
+    file_path: "src/ingestion/**/*.js"
+    format: glob
+    
+  - name: processing_modules
+    description: "Data processing module files"
+    file_path: "src/processing/**/*.js"
+    format: glob
+    
+  - name: all_source
+    description: "All JavaScript source files"
+    file_path: "src/**/*.js"
+    format: glob
+    
+  - name: test_files
+    description: "All test files"
+    file_path: "tests/**/*.js"
+    format: glob
+    
+  - name: config_files
+    description: "Configuration files"
+    file_path:
+      - "*.config.js"
+      - "src/**/config.js"
+    format: glob
+
+# =============================================================================
+# STAGES
+# =============================================================================
+# Setup and teardown stages that run before/after specs.
+
+stages:
+  - name: setup-test-environment
+    type: before
+    description: "Initialize test fixtures and environment"
+    code_to_run: !js/file stages/setup-environment.js
+
+  - name: stage-test-data
+    type: before  
+    description: "Create test data fixtures for specs"
+    preconditions: Environment is initialized
+    postconditions: Test fixtures exist in test/fixtures/
+    code_to_run: !js/file stages/stage-test-data.js
+
+  - name: initialize-platform
+    type: before
+    description: "Initialize the analytics platform with test config"
+    preconditions: Test data is staged
+    postconditions: Platform modules are loaded and registry is ready
+    code_to_run: !js/file stages/initialize-platform.js
+
+# =============================================================================
+# SPECS
+# =============================================================================
+# Behavioral specifications with semantic rules. Specs define WHAT the system
+# should do and what code quality rules apply. Tests (separate section) verify.
+
+specs:
+  # ---------------------------------------------------------------------------
+  # Core Module Specs
+  # ---------------------------------------------------------------------------
+  - description: |
+      Core module implements proper component lifecycle management
+    preconditions: |
+      Core module files exist and are syntactically valid JavaScript
+    postconditions: |
+      BaseComponent supports init/destroy lifecycle;
+      ComponentRegistry tracks registered components;
+      ConfigManager merges configurations correctly;
+    semantics:
+      - no_empty_catch:
+          target: core_modules
+          
+      - no_hardcoded_credentials:
+          target: core_modules
+          suspicious_names:
+            - password
+            - secret
+            - apiKey
+            - dbPassword
+            
+      - requires_jsdoc:
+          target:
+            - src/core/base.js
+            - src/core/registry.js
+          require_param_types: true
+          require_return_type: true
+
+  # ---------------------------------------------------------------------------
+  # Data Ingestion Specs
+  # ---------------------------------------------------------------------------
+  - description: |
+      CSV ingestion correctly parses, detects schema, and converts types
+    preconditions: |
+      Test CSV fixtures are staged;
+      Ingestion module is available;
+    postconditions: |
+      CSV parser handles standard CSV format;
+      Schema detection identifies column types (number, string, date);
+      Type conversion produces correct JavaScript types;
+      All records are loaded with data integrity preserved;
+    semantics:
+      - no_sync_in_async:
+          target: ingestion_modules
+          sync_calls:
+            - fs.readFileSync
+            - fs.writeFileSync
+            
+      - no_unhandled_promises:
+          target: ingestion_modules
+          check_async_functions: true
+          
+      - max_function_length:
+          target:
+            - src/ingestion/parsers.js
+            - src/ingestion/loader.js
+          max_lines: 40
+
+  # ---------------------------------------------------------------------------
+  # Processing Module Specs  
+  # ---------------------------------------------------------------------------
+  - description: |
+      Data processing pipeline handles transformations efficiently
+    preconditions: |
+      Processing module is initialized;
+      Input data is available from ingestion;
+    postconditions: |
+      Transformers apply operations in correct order;
+      Aggregators compute correct statistics;
+      Pipeline supports chaining of operations;
+    semantics:
+      - no_repeated_instantiation:
+          target:
+            - src/processing/pipeline.js
+            - src/processing/processor.js
+          expensive_classes:
+            - DataProcessor
+            - TransformChain
+            - Aggregator
+            - CacheManager
+            
+      - no_generic_catch:
+          target: processing_modules
+          min_catch_body_lines: 3
+
+  # ---------------------------------------------------------------------------
+  # Security Audit Spec
+  # ---------------------------------------------------------------------------
+  - description: |
+      Codebase passes security audit with no credential leaks or injection risks
+    preconditions: |
+      All source files are available for scanning
+    postconditions: |
+      No hardcoded credentials found in source;
+      No console statements in production code;
+    semantics:
+      - no_hardcoded_credentials:
+          target: all_source
+          suspicious_names:
+            - password
+            - passwd
+            - secret
+            - apiKey
+            - api_key
+            - token
+            - accessToken
+            - refreshToken
+            - privateKey
+            - private_key
+            - connectionString
+            
+      - no_console_in_production:
+          target: all_source
+          allowed_in_tests: true
+
+  # ---------------------------------------------------------------------------
+  # Code Quality Gate
+  # ---------------------------------------------------------------------------
+  - description: |
+      All source files meet code quality standards
+    preconditions: |
+      Source files exist and are syntactically valid
+    postconditions: |
+      No function exceeds maximum line count;
+      No empty catch blocks exist;
+      All public APIs have JSDoc documentation;
+    semantics:
+      - max_function_length:
+          target: all_source
+          max_lines: 50
+          exclude_patterns:
+            - "^test"
+            - "^_"
+            
+      - no_empty_catch:
+          target: all_source
+          
+      - requires_jsdoc:
+          target:
+            file_path: "src/**/!(*.test|*.spec).js"
+            format: glob
+          require_param_types: true
+          require_return_type: true
+          require_throws: false
+
+# =============================================================================
+# TESTS
+# =============================================================================
+# Executable tests that verify spec postconditions. Tests are separate from
+# specs to allow specs to define requirements without coupling to test impl.
+
+tests:
+  # ---------------------------------------------------------------------------
+  # Core Module Tests
+  # ---------------------------------------------------------------------------
+  - description: |
+      Verify core module component lifecycle and registry functionality
+    preconditions: |
+      Core module is loaded;
+      Test environment is initialized;
+    postconditions: |
+      BaseComponent can be instantiated with name and config;
+      BaseComponent.init() sets initialized state;
+      BaseComponent.destroy() sets destroyed state;
+      ComponentRegistry.register() adds components;
+      ComponentRegistry.get() retrieves registered components;
+      ComponentRegistry.has() reports registration status;
+      Validators correctly identify types (string, number, object, array);
+      ConfigManager.load() stores configuration;
+      ConfigManager.merge() deep merges nested configs;
+      ConfigManager.get() supports dot notation paths;
+    function_to_run: !js/file tests/1-test-core-module.js
+
+  # ---------------------------------------------------------------------------
+  # CSV Ingestion Tests
+  # ---------------------------------------------------------------------------
+  - description: |
+      Verify CSV parsing, schema detection, and type conversion
+    preconditions: |
+      Test CSV fixtures exist in test/fixtures/;
+      Ingestion module is available;
+    postconditions: |
+      parseCSV() extracts correct headers from CSV;
+      parseCSV() loads all data records;
+      detectSchema() identifies numeric columns;
+      detectSchema() identifies date columns;
+      detectSchema() identifies string columns;
+      convertTypes() converts numeric strings to numbers;
+      convertTypes() converts date strings to Date objects;
+      Data integrity is preserved through parsing pipeline;
+      Category grouping produces correct record counts;
+    function_to_run: !js/file tests/2-test-csv-ingestion.js
+
+  # ---------------------------------------------------------------------------
+  # Processing Pipeline Tests
+  # ---------------------------------------------------------------------------
+  - description: |
+      Verify data transformation and aggregation pipeline
+    preconditions: |
+      Processing module is initialized;
+      Sample test data is available;
+    postconditions: |
+      Transformer.map() applies function to all records;
+      Transformer.filter() removes non-matching records;
+      Transformer.sort() orders records correctly;
+      Chained transformers execute in correct order;
+      Aggregator.sum() computes correct totals;
+      Aggregator.avg() computes correct averages;
+      Aggregator.min() finds minimum values;
+      Aggregator.max() finds maximum values;
+      Aggregator.groupBy() creates correct groups;
+      Pipeline executes multiple steps in sequence;
+      Pipeline handles empty data gracefully;
+    function_to_run: !js/file tests/3-test-processing.js
+
+  # ---------------------------------------------------------------------------
+  # Integration Test: End-to-End Data Flow
+  # ---------------------------------------------------------------------------
+  - description: |
+      Verify complete data flow from ingestion through processing
+    preconditions: |
+      All modules are initialized;
+      Test fixtures are staged;
+    postconditions: |
+      CSV data loads successfully;
+      Schema is detected correctly;
+      Types are converted properly;
+      Transformations apply correctly;
+      Aggregations compute accurate results;
+      Pipeline produces expected output;
+    function_to_run: !js/file tests/4-test-integration.js
+
+  # ---------------------------------------------------------------------------
+  # Error Handling Tests
+  # ---------------------------------------------------------------------------
+  - description: |
+      Verify error handling across all modules
+    preconditions: |
+      Modules are initialized;
+      Malformed test data is available;
+    postconditions: |
+      Malformed CSV input produces clear error;
+      Invalid schema detection returns empty schema;
+      Type conversion handles invalid values gracefully;
+      Pipeline reports step-level errors;
+      All errors include helpful context;
+    function_to_run: !js/file tests/5-test-error-handling.js
+
+# =============================================================================
+# REFERENCES
+# =============================================================================
+# Source files and resources available to the evaluation context.
+
+references:
+  - description: "All JavaScript source modules"
+    file_path: "src/**/*.js"
+    environment_path: "src"
+    format: glob
+    required: true
+    read_only: true
+
+  - description: "Test files and fixtures"
+    file_path: "tests/**/*.*"
+    environment_path: "tests"
+    format: glob
+    required: false
+    read_only: true
+
+  - description: "Package configuration"
+    file_path: "package.json"
+    format: file
+    required: true
+    read_only: true
+
+# =============================================================================
+# CONFIGS
+# =============================================================================
+# Configuration values available to stages, specs, and rules.
+
+configs:
+  - name: default_config
+    description: "Default platform configuration"
+    value:
+      platform:
+        name: "Analytics Platform JS"
+        version: "1.0.0"
+      processing:
+        maxWorkers: 4
+        batchSize: 1000
+        cacheEnabled: true
+      
+  - name: rule_defaults
+    description: "Default settings for semantic rules"
+    value:
+      severity_levels:
+        error: [no_hardcoded_credentials, no_unhandled_promises]
+        warning: [no_console_in_production, max_function_length]
+        info: [requires_jsdoc]
+      fail_on_warning: false
+      fail_on_error: true
