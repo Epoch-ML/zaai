@@ -1,20 +1,16 @@
-name: "semantics"
+name: "semantic"
 category: "JavaScript Environment"
 description: |
   A comprehensive data analytics platform built with pure JavaScript
   featuring multiple interconnected modules for data ingestion, processing,
   analysis, and visualization.
 
-# =============================================================================
 # RULES SECTION
-# =============================================================================
 # Reusable semantic rules with code and parameter definitions.
 # Rules are referenced by name in specs.
 
 rules:
-  # ---------------------------------------------------------------------------
   # Code Quality Rules
-  # ---------------------------------------------------------------------------
   - name: no_repeated_instantiation
     description: |
       Detects expensive class instantiation inside loops. Classes like Client,
@@ -59,9 +55,7 @@ rules:
           - authToken
           - privateKey
 
-  # ---------------------------------------------------------------------------
   # Async/Promise Rules  
-  # ---------------------------------------------------------------------------
   - name: no_unhandled_promises
     description: |
       Ensures all promises have proper error handling via .catch() or try/catch
@@ -91,9 +85,7 @@ rules:
           - execSync
           - spawnSync
 
-  # ---------------------------------------------------------------------------
   # Error Handling Rules
-  # ---------------------------------------------------------------------------
   - name: no_empty_catch
     description: |
       Catches must not be empty - at minimum log the error or rethrow.
@@ -112,9 +104,7 @@ rules:
         description: "Minimum lines in catch body to be considered non-trivial"
         default: 2
 
-  # ---------------------------------------------------------------------------
   # Architecture Rules
-  # ---------------------------------------------------------------------------
   - name: requires_jsdoc
     description: |
       Public functions and classes must have JSDoc comments documenting
@@ -146,9 +136,7 @@ rules:
         description: "Function name patterns to exclude"
         default: []
 
-# =============================================================================
 # PATTERN SETS
-# =============================================================================
 # Reusable file targeting patterns, similar to references.
 
 patterns:
@@ -184,9 +172,7 @@ patterns:
       - "src/**/config.js"
     format: glob
 
-# =============================================================================
 # STAGES
-# =============================================================================
 # Setup and teardown stages that run before/after specs.
 
 stages:
@@ -209,16 +195,12 @@ stages:
     postconditions: Platform modules are loaded and registry is ready
     code_to_run: !js/file stages/initialize-platform.js
 
-# =============================================================================
 # SPECS
-# =============================================================================
 # Behavioral specifications with semantic rules. Specs define WHAT the system
 # should do and what code quality rules apply. Tests (separate section) verify.
 
 specs:
-  # ---------------------------------------------------------------------------
   # Core Module Specs
-  # ---------------------------------------------------------------------------
   - description: |
       Core module implements proper component lifecycle management
     preconditions: |
@@ -246,9 +228,7 @@ specs:
           require_param_types: true
           require_return_type: true
 
-  # ---------------------------------------------------------------------------
   # Data Ingestion Specs
-  # ---------------------------------------------------------------------------
   - description: |
       CSV ingestion correctly parses, detects schema, and converts types
     preconditions: |
@@ -276,9 +256,7 @@ specs:
             - src/ingestion/loader.js
           max_lines: 40
 
-  # ---------------------------------------------------------------------------
   # Processing Module Specs  
-  # ---------------------------------------------------------------------------
   - description: |
       Data processing pipeline handles transformations efficiently
     preconditions: |
@@ -303,9 +281,7 @@ specs:
           target: processing_modules
           min_catch_body_lines: 3
 
-  # ---------------------------------------------------------------------------
   # Security Audit Spec
-  # ---------------------------------------------------------------------------
   - description: |
       Codebase passes security audit with no credential leaks or injection risks
     preconditions: |
@@ -333,9 +309,7 @@ specs:
           target: all_source
           allowed_in_tests: true
 
-  # ---------------------------------------------------------------------------
   # Code Quality Gate
-  # ---------------------------------------------------------------------------
   - description: |
       All source files meet code quality standards
     preconditions: |
@@ -363,16 +337,13 @@ specs:
           require_return_type: true
           require_throws: false
 
-# =============================================================================
 # TESTS
-# =============================================================================
 # Executable tests that verify spec postconditions. Tests are separate from
 # specs to allow specs to define requirements without coupling to test impl.
 
 tests:
-  # ---------------------------------------------------------------------------
+  
   # Core Module Tests
-  # ---------------------------------------------------------------------------
   - description: |
       Verify core module component lifecycle and registry functionality
     preconditions: |
@@ -391,9 +362,7 @@ tests:
       ConfigManager.get() supports dot notation paths;
     function_to_run: !js/file tests/1-test-core-module.js
 
-  # ---------------------------------------------------------------------------
   # CSV Ingestion Tests
-  # ---------------------------------------------------------------------------
   - description: |
       Verify CSV parsing, schema detection, and type conversion
     preconditions: |
@@ -411,9 +380,7 @@ tests:
       Category grouping produces correct record counts;
     function_to_run: !js/file tests/2-test-csv-ingestion.js
 
-  # ---------------------------------------------------------------------------
   # Processing Pipeline Tests
-  # ---------------------------------------------------------------------------
   - description: |
       Verify data transformation and aggregation pipeline
     preconditions: |
@@ -433,42 +400,7 @@ tests:
       Pipeline handles empty data gracefully;
     function_to_run: !js/file tests/3-test-processing.js
 
-  # ---------------------------------------------------------------------------
-  # Integration Test: End-to-End Data Flow
-  # ---------------------------------------------------------------------------
-  - description: |
-      Verify complete data flow from ingestion through processing
-    preconditions: |
-      All modules are initialized;
-      Test fixtures are staged;
-    postconditions: |
-      CSV data loads successfully;
-      Schema is detected correctly;
-      Types are converted properly;
-      Transformations apply correctly;
-      Aggregations compute accurate results;
-      Pipeline produces expected output;
-    function_to_run: !js/file tests/4-test-integration.js
-
-  # ---------------------------------------------------------------------------
-  # Error Handling Tests
-  # ---------------------------------------------------------------------------
-  - description: |
-      Verify error handling across all modules
-    preconditions: |
-      Modules are initialized;
-      Malformed test data is available;
-    postconditions: |
-      Malformed CSV input produces clear error;
-      Invalid schema detection returns empty schema;
-      Type conversion handles invalid values gracefully;
-      Pipeline reports step-level errors;
-      All errors include helpful context;
-    function_to_run: !js/file tests/5-test-error-handling.js
-
-# =============================================================================
 # REFERENCES
-# =============================================================================
 # Source files and resources available to the evaluation context.
 
 references:
@@ -492,9 +424,7 @@ references:
     required: true
     read_only: true
 
-# =============================================================================
 # CONFIGS
-# =============================================================================
 # Configuration values available to stages, specs, and rules.
 
 configs:
